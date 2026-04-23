@@ -1,0 +1,141 @@
+[
+    {
+        "id": 1,
+        "name": "Kinora",
+        "status": "LIVE",
+        "category": [
+            "web"
+        ],
+        "tagline": "Creative image-to-video generation platform.",
+        "summary": "Kinora is a full-stack AI platform that lets creators transform static images into cinematic video content in seconds. Built solo, integrated with multiple generation models, shipped to production.",
+        "problem": "Creators needed a fast, intelligent way to transform static images into cinematic video content without complex software.",
+        "solution": "Built a full-stack AI platform integrating multiple video generation models with a clean creative interface and real-time preview.",
+        "stack": [
+            "Next.js",
+            "Python",
+            "Replicate API",
+            "Vercel",
+            "TailwindCSS"
+        ],
+        "link": "https://kinora.vercel.app",
+        "image": "/projects/kinora.jpg",
+        "images": [],
+        "video": null,
+        "colors": []
+    },
+    {
+        "id": 2,
+        "name": "JARVIS",
+        "status": "BUILDING",
+        "category": [
+            "web"
+        ],
+        "tagline": "AI life coach. Studies you for 15 days, then optimizes your life.",
+        "summary": "JARVIS is a behavioral AI system that silently studies how you live — your goals, routines, patterns — then builds a personalized optimization engine that evolves with you every day.",
+        "problem": "Generic productivity apps don't understand the individual. People need a system that learns their patterns and adapts.",
+        "solution": "Building an AI behavioral tracking engine — goal projection, adaptive planning, and daily recommendations that evolve with you.",
+        "stack": [
+            "Next.js",
+            "Claude API",
+            "Supabase",
+            "Python",
+            "Framer Motion"
+        ],
+        "link": null,
+        "image": "/projects/jarvis.jpg",
+        "images": [],
+        "video": null,
+        "colors": []
+    },
+    {
+        "id": 3,
+        "name": "Radhika",
+        "status": "ARCHIVED",
+        "category": [
+            "web"
+        ],
+        "tagline": "Multi-agent AI workspace. 8 agents. One interface.",
+        "summary": "Radhika was a multi-agent orchestration system — 8 AI agents running simultaneously, each with a dedicated role, coordinated through a single interface. The code is gone. The architecture lives on.",
+        "problem": "Complex projects require multiple AI systems working in parallel — orchestration was always the missing layer.",
+        "solution": "Built a full multi-agent orchestration system with simultaneous agent execution. Code lost. Lessons weren't.",
+        "stack": [
+            "React",
+            "Node.js",
+            "OpenAI",
+            "Langchain",
+            "WebSockets"
+        ],
+        "link": null,
+        "image": "/projects/radhika.jpg",
+        "images": [],
+        "video": null,
+        "colors": []
+    },
+    {
+        "id": 4,
+        "name": "LifeLens",
+        "status": "BUILDING",
+        "category": [
+            "app"
+        ],
+        "tagline": "Android AI app — your daily life under intelligent analysis.",
+        "summary": "LifeLens is a native Android app that tracks what no one else tracks — screen time, phone pickups, steps, energy patterns — and synthesizes it into AI-powered daily health intelligence.",
+        "problem": "People have no real visibility into how they spend their time, energy, and attention each day.",
+        "solution": "Building a native Android app tracking screen time, steps, phone pickups, and synthesizing AI-powered health insights.",
+        "stack": [
+            "Kotlin",
+            "Android",
+            "Gemini API",
+            "Room DB",
+            "Firebase"
+        ],
+        "link": null,
+        "image": "/projects/lifelens.jpg",
+        "images": [],
+        "video": null,
+        "colors": []
+    },
+    {
+        "id": 5,
+        "name": "Outreach Automator",
+        "status": "BUILDING",
+        "category": [
+            "workflow"
+        ],
+        "tagline": "LinkedIn lead scraper + automated outreach sequencer.",
+        "summary": "A full outreach automation pipeline — scrape qualified leads from LinkedIn, enrich them with AI, generate hyper-personalized messages, and run multi-step sequences. Zero manual effort.",
+        "problem": "Manual outreach is slow, inconsistent, unscalable — founders waste hours with no system behind it.",
+        "solution": "Building a full automation pipeline — scrape leads, enrich data, personalize with AI, execute multi-step sequences.",
+        "stack": [
+            "Python",
+            "Playwright",
+            "OpenAI",
+            "Airtable",
+            "n8n"
+        ],
+        "link": null,
+        "image": "/projects/outreach.jpg",
+        "images": [],
+        "video": null,
+        "colors": []
+    },
+    {
+        "id": 1774348098050,
+        "name": "Persistence Test Alpha",
+        "status": "BUILDING",
+        "category": [],
+        "tagline": "System verification...",
+        "summary": "Verified system persistence.",
+        "problem": "",
+        "solution": "",
+        "stack": [
+            "Next.js",
+            "Python"
+        ],
+        "link": null,
+        "image": "/projects/persistence test alpha.jpg",
+        "images": [],
+        "video": null,
+        "colors": []
+    }
+]

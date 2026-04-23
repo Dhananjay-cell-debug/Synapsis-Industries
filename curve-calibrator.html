@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Curve Calibrator — Synapsis</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0F1E;
+    color: #fff;
+    font-family: Inter, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 24px;
+    padding: 32px;
+  }
+  h1 {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #11B8EA;
+  }
+  p.hint {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.05em;
+  }
+  #canvas-wrap {
+    background: #0D1526;
+    border: 1px solid rgba(17,184,234,0.15);
+    border-radius: 20px;
+    padding: 32px;
+    position: relative;
+  }
+  svg { display: block; cursor: default; user-select: none; }
+  .dot { cursor: grab; }
+  .dot:active { cursor: grabbing; }
+  #output {
+    background: #0D1526;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    width: 560px;
+    word-break: break-all;
+    line-height: 1.8;
+  }
+  #output span { color: #11B8EA; font-weight: 600; }
+  button {
+    background: linear-gradient(135deg, #11B8EA, #3B6AE8);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 12px 28px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: opacity 0.15s;
+  }
+  button:hover { opacity: 0.85; }
+  #copied {
+    font-size: 11px;
+    color: #10b981;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+</style>
+</head>
+<body>
+
+<h1>Curve Calibrator</h1>
+<p class="hint">Drag the 7 dots to shape the curve → Copy Values → Paste to Claude</p>
+
+<div id="canvas-wrap">
+  <svg id="svg" width="560" height="240" viewBox="0 0 560 240">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#3B6AE8" stop-opacity="0.6"/>
+        <stop offset="100%" stop-color="#11B8EA" stop-opacity="1"/>
+      </linearGradient>
+    </defs>
+    <!-- Grid lines -->
+    <line x1="0" y1="60"  x2="560" y2="60"  stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <line x1="0" y1="120" x2="560" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <line x1="0" y1="180" x2="560" y2="180" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <!-- Glow path -->
+    <path id="glow-path" fill="none" stroke="#11B8EA" stroke-width="8" stroke-linecap="round" opacity="0.07"/>
+    <!-- Main curve -->
+    <path id="curve-path" fill="none" stroke="url(#grad)" stroke-width="2" stroke-linecap="round"/>
+    <!-- Dots rendered by JS -->
+  </svg>
+</div>
+
+<div id="output">Loading...</div>
+
+<div style="display:flex;gap:16px;align-items:center;">
+  <button onclick="copyValues()">Copy Values</button>
+  <span id="copied">✓ Copied!</span>
+</div>
+
+<script>
+const PHASES = ["DISCOVER","BLUEPRINT","IGNITION","BUILD","DELIVER","HANDOVER","ORBIT"];
+
+// Initial positions — x evenly spread, y forming a climb with IGNITION dip
+const pts = [
+  { x: 30,  y: 180 },
+  { x: 115, y: 145 },
+  { x: 200, y: 155 },
+  { x: 285, y: 110 },
+  { x: 370, y: 75  },
+  { x: 455, y: 45  },
+  { x: 530, y: 20  },
+];
+
+const svg = document.getElementById("svg");
+const curvePath = document.getElementById("curve-path");
+const glowPath = document.getElementById("glow-path");
+const output = document.getElementById("output");
+
+let dragging = null;
+let offsetX = 0, offsetY = 0;
+
+// Create dot elements
+const dotEls = pts.map((p, i) => {
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.setAttribute("class","dot");
+
+  // Glow ring for first dot
+  if (i === 0) {
+    const glow = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    glow.setAttribute("r","12");
+    glow.setAttribute("fill","#11B8EA");
+    glow.setAttribute("opacity","0.12");
+    glow.id = `glow-${i}`;
+    g.appendChild(glow);
+  }
+
+  const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  circle.setAttribute("r", i === 0 || i === 6 ? "7" : "5");
+  circle.setAttribute("fill", i === 0 ? "#11B8EA" : i === 6 ? "#11B8EA" : "#3B6AE8");
+  circle.setAttribute("stroke", "rgba(255,255,255,0.2)");
+  circle.setAttribute("stroke-width","1");
+  circle.id = `dot-${i}`;
+  g.appendChild(circle);
+
+  // Phase label
+  const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+  text.setAttribute("text-anchor","middle");
+  text.setAttribute("font-size","9");
+  text.setAttribute("font-family","Inter,sans-serif");
+  text.setAttribute("font-weight","700");
+  text.setAttribute("letter-spacing","0.04em");
+  text.setAttribute("fill", i === 0 ? "rgba(17,184,234,0.9)" : i === 6 ? "rgba(17,184,234,0.7)" : "rgba(255,255,255,0.35)");
+  text.textContent = PHASES[i];
+  text.id = `label-${i}`;
+  g.appendChild(text);
+
+  // Phase number badge
+  const badge = document.createElementNS("http://www.w3.org/2000/svg","text");
+  badge.setAttribute("text-anchor","middle");
+  badge.setAttribute("font-size","7");
+  badge.setAttribute("font-family","Inter,sans-serif");
+  badge.setAttribute("font-weight","900");
+  badge.setAttribute("fill","rgba(255,255,255,0.2)");
+  badge.textContent = `${i+1}`;
+  badge.id = `badge-${i}`;
+  g.appendChild(badge);
+
+  g.addEventListener("mousedown", (e) => {
+    dragging = i;
+    const rect = svg.getBoundingClientRect();
+    const scale = 560 / rect.width;
+    offsetX = e.clientX * scale - rect.left * scale - pts[i].x;
+    offsetY = e.clientY * scale - rect.top * scale - pts[i].y;
+    e.preventDefault();
+  });
+
+  svg.appendChild(g);
+  return g;
+});
+
+function updatePositions() {
+  pts.forEach((p, i) => {
+    const circle = document.getElementById(`dot-${i}`);
+    circle.setAttribute("cx", p.x);
+    circle.setAttribute("cy", p.y);
+
+    const glow = document.getElementById(`glow-${i}`);
+    if (glow) { glow.setAttribute("cx", p.x); glow.setAttribute("cy", p.y); }
+
+    const label = document.getElementById(`label-${i}`);
+    const labelOffset = i % 2 === 0 ? 18 : -10;
+    label.setAttribute("x", p.x);
+    label.setAttribute("y", p.y + labelOffset);
+
+    const badge = document.getElementById(`badge-${i}`);
+    badge.setAttribute("x", p.x);
+    badge.setAttribute("y", p.y + 3);
+  });
+}
+
+// Catmull-Rom → Cubic Bezier smooth path through all points
+function catmullRomPath(points) {
+  if (points.length < 2) return "";
+  const d = [];
+  d.push(`M ${r(points[0].x)},${r(points[0].y)}`);
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(i - 1, 0)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(i + 2, points.length - 1)];
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d.push(`C ${r(cp1x)},${r(cp1y)} ${r(cp2x)},${r(cp2y)} ${r(p2.x)},${r(p2.y)}`);
+  }
+  return d.join(" ");
+}
+
+function r(n) { return Math.round(n * 10) / 10; }
+
+function updateCurve() {
+  const d = catmullRomPath(pts);
+  curvePath.setAttribute("d", d);
+  glowPath.setAttribute("d", d);
+  updateOutput();
+}
+
+function updateOutput() {
+  const coords = pts.map((p,i) => `{ name:"${PHASES[i]}", x:${r(p.x)}, y:${r(p.y)} }`).join(",\n  ");
+  output.innerHTML = `<span>Coordinates:</span><br/>${coords.replace(/\n/g,"<br/>")}`;
+}
+
+svg.addEventListener("mousemove", (e) => {
+  if (dragging === null) return;
+  const rect = svg.getBoundingClientRect();
+  const scale = 560 / rect.width;
+  let nx = e.clientX * scale - rect.left * scale - offsetX;
+  let ny = e.clientY * scale - rect.top * scale - offsetY;
+  nx = Math.max(5, Math.min(555, nx));
+  ny = Math.max(5, Math.min(235, ny));
+  pts[dragging].x = nx;
+  pts[dragging].y = ny;
+  updatePositions();
+  updateCurve();
+});
+
+svg.addEventListener("mouseup", () => { dragging = null; });
+svg.addEventListener("mouseleave", () => { dragging = null; });
+
+function copyValues() {
+  const text = pts.map((p,i) => `{ name: "${PHASES[i]}", x: ${r(p.x)}, y: ${r(p.y)} }`).join(",\n");
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById("copied");
+    el.style.opacity = "1";
+    setTimeout(() => el.style.opacity = "0", 2000);
+  });
+}
+
+// Init
+updatePositions();
+updateCurve();
+</script>
+</body>
+</html>

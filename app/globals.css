@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes blobPulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.1); opacity: 0.5; }
+}
+
+@keyframes blobFloat {
+  0%, 100% { transform: scale(1) translateX(0); opacity: 0.28; }
+  50% { transform: scale(1.15) translateX(25px); opacity: 0.42; }
+}
+
+@keyframes blobFloat2 {
+  0%, 100% { transform: scale(1) translateX(0); opacity: 0.25; }
+  50% { transform: scale(1.2) translateX(-30px); opacity: 0.4; }
+}
+
+@keyframes shimmerLine {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+:root {
+  --background: #0A0F1E;
+  --foreground: #FFFFFF;
+  --accent-light: #11B8EA;
+  --accent-dark: #3B6AE8;
+  --surface: #0D1526;
+  --surface-elevated: #152035;
+  --text-muted: #94A3B8;
+  --spacing-container: 10vw;
+}
+
+@layer base {
+
+  /* PREMIUM ANTI-ALIASING — Neverland secret sauce */
+  html,
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
+  }
+
+  *, *::before, *::after {
+    cursor: none !important;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* PREMIUM TYPOGRAPHY — tight tracking like Neverland */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 400;
+    line-height: 0.95;
+    font-family: 'Cormorant Garamond', serif;
+    letter-spacing: -0.05em;
+  }
+
+  h1 {
+    font-size: clamp(3rem, 6vw, 6rem);
+  }
+
+  h2 {
+    font-size: clamp(2rem, 4vw, 3.5rem);
+  }
+
+  h3 {
+    font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  /* Links — brand azure blue */
+  a {
+    color: var(--accent-light);
+    text-decoration: none;
+  }
+}
+
+@layer components {
+
+  /* NEVERLAND LINK — sliding underline animation */
+  .neverland-link {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    color: var(--accent-light);
+    font-size: 1.125rem;
+    cursor: none;
+  }
+
+  .neverland-link::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background-color: var(--accent-light);
+    transition: transform 0.5s cubic-bezier(.77, 0, .175, 1);
+    transform: translateX(calc(-100% + 2rem));
+  }
+
+  .neverland-link:hover::after {
+    transform: translateX(calc(100% - 2rem));
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .container-agency {
+    padding-left: var(--spacing-container);
+    padding-right: var(--spacing-container);
+    width: 100%;
+  }
+
+  .text-meta {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+  }
+
+  /* PREMIUM EASING — Neverland's signature buttery smooth */
+  .ease-quart {
+    transition-timing-function: cubic-bezier(.77, 0, .175, 1);
+  }
+
+  /* Vertical text orientation for scroll labels */
+  .text-vertical {
+    writing-mode: vertical-lr;
+    transform: scale(-1);
+  }
+
+  /* PREMIUM BLUE 4-COLOR GRADIENT ANIMATION */
+  @keyframes gradientFlow {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .premium-blue-gradient {
+    background: linear-gradient(-45deg,
+        #0A0F1E,
+        #0D1526,
+        #3B6AE8,
+        #11B8EA
+      );
+    background-size: 300% 300%;
+    animation: gradientFlow 10s ease infinite;
+    color: white;
+  }
+
+  .font-outfit {
+    font-family: 'Outfit', sans-serif;
+  }
+}
