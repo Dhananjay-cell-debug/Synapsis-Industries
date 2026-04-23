@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo, useEffect, Suspense } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { Text3D, Center, RoundedBox, Float } from "@react-three/drei";
@@ -532,22 +532,28 @@ export default function HeroModel() {
                             depthWrite={false}
                         />
                     </mesh>
-                    <Center>
-                        <Text3D
-                            font="/fonts/optimer_bold.typeface.json"
-                            size={0.15}
-                            height={0.03}
-                            curveSegments={16}
-                            bevelEnabled
-                            bevelThickness={0.008}
-                            bevelSize={0.008}
-                            bevelOffset={0}
-                            bevelSegments={4}
-                        >
-                            SI
-                            <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2.5} toneMapped={false} />
-                        </Text3D>
-                    </Center>
+                    {/* Text3D loads a typeface JSON via Suspense. If that load ever hangs or
+                        fails, we do NOT want it to block the rest of the scene — so it gets its
+                        own Suspense boundary with a null fallback. Worst case, the "SI" text is
+                        missing but the full scene still renders. */}
+                    <Suspense fallback={null}>
+                        <Center>
+                            <Text3D
+                                font="/fonts/optimer_bold.typeface.json"
+                                size={0.15}
+                                height={0.03}
+                                curveSegments={16}
+                                bevelEnabled
+                                bevelThickness={0.008}
+                                bevelSize={0.008}
+                                bevelOffset={0}
+                                bevelSegments={4}
+                            >
+                                SI
+                                <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2.5} toneMapped={false} />
+                            </Text3D>
+                        </Center>
+                    </Suspense>
                     <pointLight color="#11B8EA" intensity={0.6} distance={3} />
                 </group>
 

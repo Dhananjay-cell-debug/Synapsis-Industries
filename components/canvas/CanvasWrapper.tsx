@@ -36,12 +36,7 @@ function forceCleanStaleContexts() {
 }
 
 function LoadingFallback() {
-    return (
-        <mesh>
-            <boxGeometry args={[0.5, 0.5, 0.5]} />
-            <meshBasicMaterial color="#11B8EA" wireframe />
-        </mesh>
-    );
+    return null;
 }
 
 export default function CanvasWrapper({
@@ -54,7 +49,9 @@ export default function CanvasWrapper({
 
     // Check WebGL support and clean stale contexts BEFORE mounting canvas
     useEffect(() => {
-        forceCleanStaleContexts();
+        // Dev-only: HMR leaves zombie WebGL contexts behind. In production the
+        // browser has a clean slate, so running this would risk nuking legit canvases.
+        if (process.env.NODE_ENV === 'development') forceCleanStaleContexts();
 
         // Probe WebGL availability
         const testCanvas = document.createElement('canvas');
@@ -81,10 +78,12 @@ export default function CanvasWrapper({
             console.info('[Synapsis GPU]', glCtx.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
         }
 
+        // Note: deliberately NOT auto-reloading on context loss. An auto-reload in
+        // production on a weak GPU becomes an infinite refresh loop. Let the user
+        // retry manually if it ever happens — R3F/three will attempt restore itself.
         canvas.addEventListener('webglcontextlost', (e: Event) => {
             e.preventDefault();
-            console.warn('[Synapsis] WebGL context lost — attempting recovery in 2s');
-            setTimeout(() => window.location.reload(), 2000);
+            console.warn('[Synapsis] WebGL context lost — waiting for browser restore');
         });
 
         canvas.addEventListener('webglcontextrestored', () => {
