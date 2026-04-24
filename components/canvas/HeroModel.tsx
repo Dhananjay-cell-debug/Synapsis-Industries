@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useMemo, useEffect, Suspense } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { Text3D, Center, RoundedBox, Float } from "@react-three/drei";
+import { MeshTransmissionMaterial, Text3D, Center, RoundedBox, Float } from "@react-three/drei";
 import * as topojson from "topojson-client";
 import * as d3 from "d3-geo";
 import FloatingServiceCards from "./FloatingServiceCards";
@@ -16,12 +16,12 @@ function GoldenGlobe() {
     const [canvas, texture] = useMemo(() => {
         if (typeof document === "undefined") return [null as unknown as HTMLCanvasElement, null as unknown as THREE.CanvasTexture];
         const c = document.createElement("canvas");
-        c.width = 1024;
-        c.height = 512;
+        c.width = 2048;
+        c.height = 1024;
         const ctx = c.getContext("2d");
         if (ctx) {
             ctx.fillStyle = "#1a1a1a";
-            ctx.fillRect(0, 0, 1024, 512);
+            ctx.fillRect(0, 0, 2048, 1024);
         }
         const tex = new THREE.CanvasTexture(c);
         return [c, tex];
@@ -35,10 +35,10 @@ function GoldenGlobe() {
             .then((res) => res.json())
             .then((world) => {
                 const countries = topojson.feature(world, world.objects.countries) as any;
-                const projection = d3.geoEquirectangular().translate([512, 256]).scale(1024 / (2 * Math.PI));
+                const projection = d3.geoEquirectangular().translate([1024, 512]).scale(2048 / (2 * Math.PI));
                 const path = d3.geoPath().projection(projection).context(ctx);
                 ctx.fillStyle = "#6c4217";
-                ctx.fillRect(0, 0, 1024, 512);
+                ctx.fillRect(0, 0, 2048, 1024);
                 countries.features.forEach((feature: any) => {
                     ctx.beginPath();
                     path(feature);
@@ -62,8 +62,8 @@ function GoldenGlobe() {
     });
 
     return (
-        <mesh ref={globeRef} >
-            <sphereGeometry args={[0.5, 32, 32]} />
+        <mesh ref={globeRef} castShadow receiveShadow>
+            <sphereGeometry args={[0.5, 64, 64]} />
             <meshStandardMaterial
                 ref={materialRef}
                 map={texture}
@@ -82,14 +82,14 @@ function AIServerRack({ position, rotation }: { position: [number, number, numbe
     return (
         <group position={position} rotation={rotation} scale={0.9}>
             {/* Rack frame */}
-            <mesh >
+            <mesh castShadow receiveShadow>
                 <boxGeometry args={[0.85, 2.6, 0.55]} />
                 <meshStandardMaterial color="#111111" metalness={0.8} roughness={0.25} />
             </mesh>
             {/* Server units */}
             {[0, 1, 2, 3, 4, 5].map((i) => (
                 <group key={i} position={[0, -1.0 + i * 0.38, 0.28]}>
-                    <mesh >
+                    <mesh castShadow>
                         <boxGeometry args={[0.75, 0.3, 0.02]} />
                         <meshStandardMaterial color="#1a1a1a" metalness={0.9} roughness={0.1} />
                     </mesh>
@@ -100,7 +100,7 @@ function AIServerRack({ position, rotation }: { position: [number, number, numbe
                     </mesh>
                     {/* Activity dots */}
                     {[0, 1, 2].map((j) => (
-                        <mesh key={j} position={[-0.1 + j * 0.08, 0, 0.012]}>
+                        <mesh key={j} position={[-0.1 + j * 0.09, 0, 0.012]}>
                             <circleGeometry args={[0.016, 8]} />
                             <meshStandardMaterial
                                 color={j === 1 ? "#22c55e" : "#11B8EA"}
@@ -120,7 +120,7 @@ function AIServerRack({ position, rotation }: { position: [number, number, numbe
                 </group>
             ))}
             {/* Base */}
-            <mesh position={[0, -1.4, 0]} >
+            <mesh position={[0, -1.4, 0]} castShadow receiveShadow>
                 <boxGeometry args={[0.95, 0.08, 0.65]} />
                 <meshStandardMaterial color="#0a0a0a" metalness={0.9} roughness={0.2} />
             </mesh>
@@ -129,28 +129,28 @@ function AIServerRack({ position, rotation }: { position: [number, number, numbe
 }
 
 
-// --- AI Terminal (Holographic Screen) (replaces Cinema Camera) ---
+// --- AI Terminal / Holographic Screen (replaces Cinema Camera) ---
 function AITerminal({ position, rotation }: { position: [number, number, number]; rotation: [number, number, number] }) {
     return (
         <group position={position} rotation={rotation} scale={0.6}>
             {/* Pole */}
-            <mesh position={[0, -1.1, 0]}>
+            <mesh position={[0, -1.1, 0]} castShadow>
                 <cylinderGeometry args={[0.04, 0.06, 2.2, 16]} />
                 <meshStandardMaterial color="#222222" metalness={0.9} roughness={0.2} />
             </mesh>
             {/* Base */}
-            <mesh position={[0, -2.3, 0]} >
+            <mesh position={[0, -2.3, 0]} castShadow receiveShadow>
                 <cylinderGeometry args={[0.3, 0.35, 0.06, 32]} />
                 <meshStandardMaterial color="#111111" metalness={0.8} roughness={0.3} />
             </mesh>
             {/* Screen frame */}
-            <RoundedBox args={[2.2, 1.05, 0.07]} radius={0.04} smoothness={4} >
+            <RoundedBox args={[1.5, 0.95, 0.07]} radius={0.04} smoothness={4} castShadow>
                 <meshStandardMaterial color="#1a1a1a" metalness={0.8} roughness={0.2} />
             </RoundedBox>
             {/* Screen */}
             <mesh position={[0, 0, 0.037]}>
-                <planeGeometry args={[2.14, 0.94]} />
-                <meshStandardMaterial color="#0f172a" emissive="#11B8EA" emissiveIntensity={0.25} />
+                <planeGeometry args={[1.38, 0.85]} />
+                <meshStandardMaterial color="#050d1a" emissive="#11B8EA" emissiveIntensity={0.25} />
             </mesh>
             {/* Code lines */}
             {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -177,29 +177,29 @@ function AITerminal({ position, rotation }: { position: [number, number, number]
 function ProfessionalWorkstation({ position, rotation }: { position: [number, number, number]; rotation: [number, number, number] }) {
     return (
         <group position={position} rotation={rotation} scale={0.8}>
-            <mesh position={[0, 0, 0]} >
+            <mesh position={[0, 0, 0]} castShadow receiveShadow>
                 <boxGeometry args={[3.2, 0.05, 1.2]} />
                 <meshStandardMaterial color="#111111" metalness={0.8} roughness={0.2} />
             </mesh>
             <group position={[0, 0.8, -0.3]}>
-                <mesh position={[0, -0.78, -0.1]} >
+                <mesh position={[0, -0.78, -0.1]} castShadow receiveShadow>
                     <boxGeometry args={[0.5, 0.02, 0.3]} />
                     <meshStandardMaterial color="#888888" metalness={0.9} roughness={0.1} />
                 </mesh>
-                <mesh position={[0, -0.4, -0.15]} rotation={[0.1, 0, 0]} >
+                <mesh position={[0, -0.4, -0.15]} rotation={[0.1, 0, 0]} castShadow receiveShadow>
                     <cylinderGeometry args={[0.04, 0.04, 0.8]} />
-                    <meshStandardMaterial color="#aaaaaa" metalness={0.95} roughness={0.1} />
+                    <meshStandardMaterial color="#aaaaaa" metalness={0.9} roughness={0.1} />
                 </mesh>
-                <RoundedBox args={[2.2, 1.0, 0.05]} radius={0.02} smoothness={2} >
+                <RoundedBox args={[2.2, 1.0, 0.05]} radius={0.02} smoothness={2} castShadow receiveShadow>
                     <meshStandardMaterial color="#222222" metalness={0.8} roughness={0.3} />
                 </RoundedBox>
                 <mesh position={[0, 0, 0.026]}>
                     <planeGeometry args={[2.14, 0.94]} />
-                    <meshStandardMaterial color="#050d1a" emissive="#11B8EA" emissiveIntensity={0.25} />
+                    <meshStandardMaterial color="#0f172a" emissive="#11B8EA" emissiveIntensity={0.25} />
                 </mesh>
             </group>
             {/* Mouse */}
-            <group position={[1.0, 0.15, -0.2]} >
+            <group position={[1.0, 0.15, -0.2]} castShadow receiveShadow>
                 <RoundedBox args={[0.5, 0.25, 0.5]} radius={0.05} smoothness={4}>
                     <meshStandardMaterial color="#cccccc" metalness={0.9} roughness={0.2} />
                 </RoundedBox>
@@ -209,7 +209,7 @@ function ProfessionalWorkstation({ position, rotation }: { position: [number, nu
                 </mesh>
             </group>
             {/* Keyboard */}
-            <group position={[-0.2, 0.03, 0.3]} rotation={[0, -0.2, 0]} >
+            <group position={[-0.2, 0.03, 0.3]} rotation={[0.05, 0, 0]} castShadow receiveShadow>
                 <RoundedBox args={[1.0, 0.02, 0.35]} radius={0.02} smoothness={2}>
                     <meshStandardMaterial color="#dddddd" metalness={0.7} roughness={0.2} />
                 </RoundedBox>
@@ -219,7 +219,7 @@ function ProfessionalWorkstation({ position, rotation }: { position: [number, nu
                 </mesh>
             </group>
             {/* Mouse pad / trackpad */}
-            <group position={[0.6, 0.03, 0.3]} rotation={[0, -0.2, 0]} >
+            <group position={[0.6, 0.03, 0.3]} rotation={[0, -0.2, 0]} castShadow receiveShadow>
                 <capsuleGeometry args={[0.06, 0.1, 16, 16]} />
                 <meshStandardMaterial color="#dddddd" metalness={0.6} roughness={0.1} />
             </group>
@@ -227,8 +227,8 @@ function ProfessionalWorkstation({ position, rotation }: { position: [number, nu
     );
 }
 
-// —— Workflow Automation (AI Automation service) ——
-// Represents: automated pipelines → Trigger → AI Process→ Output
+// ─── Workflow Automation (AI Automation service) ───
+// Represents: automated pipelines — Trigger → AI Process → Output
 function WorkflowDiagram({ position }: { position: [number, number, number] }) {
     const nodeColors: [string, string, string] = ["#22c55e", "#11B8EA", "#3B6AE8"];
     const nodeX: [number, number, number] = [-0.55, 0, 0.55];
@@ -238,7 +238,7 @@ function WorkflowDiagram({ position }: { position: [number, number, number] }) {
             <group position={position} rotation={[0.15, 0, 0]}>
                 {/* Connecting lines between nodes */}
                 {([0, 1] as const).map((i) => (
-                    <mesh key={i} position={[nodeX[i] + 0.275, 0, 0]}>
+                    <mesh key={i} position={[nodeX[i] + 0.275, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
                         <cylinderGeometry args={[0.007, 0.007, 0.38, 6]} />
                         <meshStandardMaterial color="#11B8EA" emissive="#11B8EA" emissiveIntensity={2} toneMapped={false} transparent opacity={0.7} />
                     </mesh>
@@ -283,7 +283,7 @@ function WorkflowDiagram({ position }: { position: [number, number, number] }) {
     );
 }
 
-// —— LLM Orbital (AI Integration service)——
+// ─── LLM Orbital (AI Integration service) ───
 // Represents: LLM models with data flowing in/out via orbiting nodes
 function LLMOrbital({ position }: { position: [number, number, number] }) {
     const outerOrbitRef = useRef<THREE.Group>(null);
@@ -327,8 +327,8 @@ function LLMOrbital({ position }: { position: [number, number, number] }) {
                             <mesh key={i} position={[Math.cos(angle) * 0.43, 0, Math.sin(angle) * 0.43]}>
                                 <sphereGeometry args={[0.042, 10, 10]} />
                                 <meshStandardMaterial
-                                    color={i % 2 === 0 ? "#22c55e" : "#3B6AE8"}
-                                    emissive={i % 2 === 0 ? "#22c55e" : "#3B6AE8"}
+                                    color={i % 2 === 0 ? "#11B8EA" : "#3B6AE8"}
+                                    emissive={i % 2 === 0 ? "#11B8EA" : "#3B6AE8"}
                                     emissiveIntensity={3}
                                     toneMapped={false}
                                 />
@@ -354,8 +354,8 @@ function LLMOrbital({ position }: { position: [number, number, number] }) {
     );
 }
 
-// —— Full Stack Architecture (Full Stack Dev service)——
-// Represents: 3-tier web architecture → Database → API → UI Dashboard
+// ─── Full Stack Architecture (Full Stack Dev service) ───
+// Represents: 3-tier web architecture — Database → API → UI Dashboard
 function FullStackArch({ position }: { position: [number, number, number] }) {
     const barHeights: [number, number, number, number] = [0.08, 0.13, 0.06, 0.10];
     const barColors: [string, string, string, string] = ["#11B8EA", "#3B6AE8", "#22c55e", "#11B8EA"];
@@ -365,7 +365,7 @@ function FullStackArch({ position }: { position: [number, number, number] }) {
             <group position={position} rotation={[0, 0.3, 0]}>
                 {/* DB layer */}
                 <group position={[0, -0.46, 0]}>
-                    <mesh >
+                    <mesh castShadow>
                         <cylinderGeometry args={[0.22, 0.22, 0.10, 24]} />
                         <meshStandardMaterial color="#1a1a2e" metalness={0.8} roughness={0.3} />
                     </mesh>
@@ -380,7 +380,7 @@ function FullStackArch({ position }: { position: [number, number, number] }) {
                         </mesh>
                     ))}
                 </group>
-                {/* Vertical connector DB→API */}
+                {/* Vertical connector DB → API */}
                 <mesh position={[0, -0.235, 0]}>
                     <cylinderGeometry args={[0.005, 0.005, 0.29, 5]} />
                     <meshStandardMaterial color="#11B8EA" emissive="#11B8EA" emissiveIntensity={2} toneMapped={false} transparent opacity={0.6} />
@@ -406,7 +406,7 @@ function FullStackArch({ position }: { position: [number, number, number] }) {
                         </mesh>
                     ))}
                 </group>
-                {/* Vertical connector API→UI */}
+                {/* Vertical connector API → UI */}
                 <mesh position={[0, 0.235, 0]}>
                     <cylinderGeometry args={[0.005, 0.005, 0.29, 5]} />
                     <meshStandardMaterial color="#11B8EA" emissive="#11B8EA" emissiveIntensity={2} toneMapped={false} transparent opacity={0.6} />
@@ -442,7 +442,7 @@ function FullStackArch({ position }: { position: [number, number, number] }) {
 // --- Dhananjay Character (removed — will be replaced with a proper GLB model) ---
 function DhananjayCharacter({ position, rotation }: { position: [number, number, number]; rotation?: [number, number, number] }) {
     return (
-        <group position={position} rotation={rotation || [0, 0, 0]} scale={1.6}>
+        <group position={position} rotation={rotation ?? [0, 0, 0]} scale={1.6}>
 
         </group>
     );
@@ -480,7 +480,10 @@ export default function HeroModel() {
         curveSegments: 64,
     }), []);
 
-    useFrame((state) => {
+    useFrame((state, delta) => {
+        if (groupRef.current) {
+            groupRef.current.rotation.y += delta * 0.05;
+        }
         if (floatRef.current) {
             floatRef.current.position.y = 2.4 + Math.sin(state.clock.elapsedTime * 1.5) * 0.1;
         }
@@ -490,11 +493,11 @@ export default function HeroModel() {
         <group ref={groupRef} position={[0, -2, -15]}>
 
             {/* 1. Base Stage */}
-            <mesh position={[0, -0.2, 0]} >
+            <mesh position={[0, -0.2, 0]} receiveShadow castShadow>
                 <cylinderGeometry args={[4.5, 4.5, 0.4, 64]} />
                 <meshStandardMaterial color="#0A1628" roughness={0.7} />
             </mesh>
-            <mesh position={[0, 0, 0.5]} >
+            <mesh position={[0, 0, 0.5]} receiveShadow castShadow>
                 <cylinderGeometry args={[3.8, 3.8, 0.2, 64]} />
                 <meshStandardMaterial color="#3B6AE8" roughness={0.4} />
             </mesh>
@@ -503,91 +506,88 @@ export default function HeroModel() {
             <AIServerRack position={[-2.2, 1.3, 0.5]} rotation={[0, Math.PI / 5, 0]} />
 
             {/* 3. The Arch (Right Rear) */}
-            <mesh position={[1.5, 0.1, -1.0]} >
+            <mesh position={[1.5, 0.1, -1.0]} castShadow receiveShadow>
                 <extrudeGeometry args={[archShape, archExtrudeSettings]} />
                 <meshStandardMaterial color="#3B6AE8" roughness={0.3} metalness={0.1} />
             </mesh>
 
             {/* 4. Center Black Pedestal & Glass Dome */}
             <group position={[0, 0.1, 0.5]}>
-                <mesh position={[0, 0.8, 0]} >
+                <mesh position={[0, 0.8, 0]} castShadow receiveShadow>
                     <boxGeometry args={[1.5, 1.6, 1.5]} />
                     <meshStandardMaterial color="#1a1a1a" roughness={0.1} />
                 </mesh>
 
                 {/* Floating Orb inside dome */}
                 <group ref={floatRef} position={[0, 2.4, 0]}>
-                    <mesh>
-                        <sphereGeometry args={[0.28, 32, 32]} />
-                        <meshStandardMaterial
+                    <mesh castShadow={false} receiveShadow={false}>
+                        <sphereGeometry args={[0.28, 64, 64]} />
+                        <meshPhysicalMaterial
                             color="#11B8EA"
-                            transparent
+                            transparent={true}
                             opacity={0.65}
-                            roughness={0.15}
-                            metalness={0.3}
+                            roughness={0.05}
+                            metalness={0.2}
+                            clearcoat={1}
+                            clearcoatRoughness={0.05}
                             emissive="#0a5a8a"
-                            emissiveIntensity={0.45}
+                            emissiveIntensity={0.3}
                             depthWrite={false}
                         />
                     </mesh>
-                    {/* Text3D loads a typeface JSON via Suspense. If that load ever hangs or
-                        fails, we do NOT want it to block the rest of the scene — so it gets its
-                        own Suspense boundary with a null fallback. Worst case, the "SI" text is
-                        missing but the full scene still renders. */}
-                    <Suspense fallback={null}>
-                        <Center>
-                            <Text3D
-                                font="/fonts/optimer_bold.typeface.json"
-                                size={0.15}
-                                height={0.03}
-                                curveSegments={16}
-                                bevelEnabled
-                                bevelThickness={0.008}
-                                bevelSize={0.008}
-                                bevelOffset={0}
-                                bevelSegments={4}
-                            >
-                                SI
-                                <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2.5} toneMapped={false} />
-                            </Text3D>
-                        </Center>
-                    </Suspense>
+                    <Center>
+                        <Text3D
+                            font="/fonts/optimer_bold.typeface.json"
+                            size={0.15}
+                            height={0.03}
+                            curveSegments={16}
+                            bevelEnabled
+                            bevelThickness={0.008}
+                            bevelSize={0.008}
+                            bevelOffset={0}
+                            bevelSegments={4}
+                        >
+                            SI
+                            <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2.5} toneMapped={false} />
+                        </Text3D>
+                    </Center>
                     <pointLight color="#11B8EA" intensity={0.6} distance={3} />
                 </group>
 
-                {/* Glass Dome — was meshPhysicalMaterial with transmission=0.92 which
-                    forces an extra render-target pass every frame. Swapped for a standard
-                    translucent material — visually near-identical at this scale, zero
-                    render-target cost. Sphere segments also trimmed. */}
-                <mesh position={[0, 2.4, 0]} >
-                    <capsuleGeometry args={[0.7, 1.0, 16, 24]} />
-                    <meshStandardMaterial
-                        transparent
-                        roughness={0.15}
-                        metalness={0.05}
+                {/* Glass Dome */}
+                <mesh position={[0, 2.4, 0]} castShadow>
+                    <capsuleGeometry args={[0.7, 1.0, 32, 64]} />
+                    <MeshTransmissionMaterial
+                        backside
+                        samples={4}
+                        thickness={0.2}
+                        chromaticAberration={0.02}
+                        anisotropy={0}
+                        distortion={0}
+                        distortionScale={0}
+                        temporalDistortion={0.0}
                         color="#ffffff"
-                        opacity={0.12}
-                        depthWrite={false}
-                        side={THREE.DoubleSide}
+                        transmission={0.9}
+                        roughness={0.05}
                     />
                 </mesh>
             </group>
 
             {/* 5. The Golden Earth on Metallic Stand */}
             <group position={[3.0, 0.2, 1.5]}>
-                <mesh position={[0, 0, 0]} >
+                <mesh position={[0, 0, 0]} castShadow receiveShadow>
                     <cylinderGeometry args={[0.35, 0.4, 0.05, 32]} />
                     <meshStandardMaterial color="#111111" metalness={0.9} roughness={0.2} />
                 </mesh>
-                <mesh position={[0, 0.25, 0]} >
+                <mesh position={[0, 0.25, 0]} castShadow>
                     <cylinderGeometry args={[0.03, 0.1, 0.45, 16]} />
                     <meshStandardMaterial color="#aaaaaa" metalness={0.95} roughness={0.05} />
                 </mesh>
-                <mesh position={[0, 0.48, 0]} >
+                <mesh position={[0, 0.48, 0]} castShadow>
                     <cylinderGeometry args={[0.12, 0.12, 0.03, 32]} />
                     <meshStandardMaterial color="#222222" metalness={0.9} roughness={0.15} />
                 </mesh>
-                <mesh position={[0, 0.56, 0]} >
+                <mesh position={[0, 0.56, 0]} castShadow>
                     <torusGeometry args={[0.26, 0.035, 16, 64]} />
                     <meshStandardMaterial color="#cccccc" metalness={0.98} roughness={0.05} />
                 </mesh>

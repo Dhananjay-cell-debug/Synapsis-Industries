@@ -189,8 +189,10 @@ export default function CameraRig() {
         targetLookAt.current.set(lookX, lookY, lookZ);
         currentLookAt.current.lerp(targetLookAt.current, delta * 4);
 
-        // Lock camera up vector to world up — prevents "ulat pulat" spin + lookAt conflict
-        state.camera.up.set(0, 1, 0);
+        // Apply dynamic head roll (tilt) for realism by shifting the camera 'UP' vector
+        currentRoll.current = THREE.MathUtils.lerp(currentRoll.current, targetRoll, delta * 6);
+        state.camera.up.set(Math.sin(currentRoll.current), Math.cos(currentRoll.current), 0);
+        state.camera.up.normalize();
 
         // Direct the camera at the final look coordinates
         state.camera.lookAt(currentLookAt.current);

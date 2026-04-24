@@ -30,9 +30,7 @@ function WallArch({ holeRadius, holeHeight, depth, position, wallColor = "#0A162
     const extrudeSettings = useMemo(() => ({
         depth: depth,
         bevelEnabled: false,
-        // Was 128 — absurdly expensive for an arch that spans maybe 300px of screen.
-        // 32 holds up visually at normal viewing distance and cuts geometry cost ~4x.
-        curveSegments: 32,
+        curveSegments: 128,
     }), [depth]);
 
     // Progressive depth: deeper layers get slightly more emissive and slightly different roughness

@@ -1,6 +1,6 @@
 "use client";
 
-import { Float, Html } from "@react-three/drei";
+import { Float, Text } from "@react-three/drei";
 import { useMemo } from "react";
 import * as THREE from "three";
 
@@ -249,28 +249,18 @@ function HUDCard({ data }: { data: typeof cardsData[0] }) {
                     {data.title === "AI INTEGRATION" && <ChipIcon />}
                 </group>
 
-                {/* ── Title in header ──
-                    drei's <Html transform> without distanceFactor maps 1 CSS px = 1 world
-                    unit — so `width: 300px` was literally 300 units wide, producing giant
-                    overlapping text that buried the scene. distanceFactor scales the DOM
-                    element based on camera distance so it tracks the card face naturally. */}
-                <Html
-                    transform
-                    center
-                    distanceFactor={8}
+                {/* ── Title in header ── */}
+                <Text
                     position={[0.1, HEADER_Y, 0.04]}
-                    style={{
-                        color: CYAN,
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                        fontFamily: "monospace",
-                        width: "300px",
-                        textAlign: "center",
-                        textShadow: `0 0 8px ${CYAN}`
-                    }}
+                    fontSize={0.068}
+                    color={CYAN}
+                    anchorX="center"
+                    anchorY="middle"
+                    textAlign="center"
                 >
                     {`[ ${data.title} ]`}
-                </Html>
+                    <meshStandardMaterial color={CYAN} emissive={CYAN} emissiveIntensity={0.5} />
+                </Text>
 
                 {/* ── Content box frame (royal blue) ── */}
                 <group position={[0, BODY_CENTER_Y, 0]}>
@@ -281,25 +271,19 @@ function HUDCard({ data }: { data: typeof cardsData[0] }) {
                     <Strip w={T} h={0.30} position={[(W - 0.14) / 2, 0, 0.02]} color={ROYAL} emissive={1.5} />
 
                     {/* Description text */}
-                    <Html
-                        transform
-                        center
-                        distanceFactor={8}
+                    <Text
                         position={[0, 0, 0.04]}
-                        style={{
-                            color: "white",
-                            fontSize: "10px",
-                            fontFamily: "sans-serif",
-                            width: "250px",
-                            textAlign: "center",
-                            lineHeight: "1.5",
-                            textShadow: "0 0 4px rgba(255,255,255,0.3)"
-                        }}
+                        fontSize={0.046}
+                        color="white"
+                        anchorX="center"
+                        anchorY="middle"
+                        textAlign="center"
+                        maxWidth={W - 0.22}
+                        lineHeight={1.5}
                     >
-                        {data.description.split('\n').map((line, i) => (
-                            <div key={i}>{line}</div>
-                        ))}
-                    </Html>
+                        {data.description}
+                        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.15} />
+                    </Text>
                 </group>
 
                 {/* ── Glow light ── */}
