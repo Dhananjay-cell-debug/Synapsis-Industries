@@ -124,7 +124,7 @@ export default function CanvasWrapper({
             <Canvas
                 className="w-full h-full"
                 camera={{ position: [0, 0, 10], fov: 35, near: 0.1, far: 200 }}
-                dpr={[1, 1.5]}
+                dpr={[1, 1.25]}
                 gl={{
                     toneMapping: THREE.ACESFilmicToneMapping,
                     toneMappingExposure: 1.2,

@@ -63,7 +63,7 @@ function GoldenGlobe() {
 
     return (
         <mesh ref={globeRef} >
-            <sphereGeometry args={[0.5, 64, 64]} />
+            <sphereGeometry args={[0.5, 32, 32]} />
             <meshStandardMaterial
                 ref={materialRef}
                 map={texture}
@@ -518,17 +518,15 @@ export default function HeroModel() {
                 {/* Floating Orb inside dome */}
                 <group ref={floatRef} position={[0, 2.4, 0]}>
                     <mesh>
-                        <sphereGeometry args={[0.28, 64, 64]} />
-                        <meshPhysicalMaterial
+                        <sphereGeometry args={[0.28, 32, 32]} />
+                        <meshStandardMaterial
                             color="#11B8EA"
-                            transparent={true}
+                            transparent
                             opacity={0.65}
-                            roughness={0.05}
-                            metalness={0.2}
-                            clearcoat={1}
-                            clearcoatRoughness={0.05}
+                            roughness={0.15}
+                            metalness={0.3}
                             emissive="#0a5a8a"
-                            emissiveIntensity={0.3}
+                            emissiveIntensity={0.45}
                             depthWrite={false}
                         />
                     </mesh>
@@ -557,17 +555,18 @@ export default function HeroModel() {
                     <pointLight color="#11B8EA" intensity={0.6} distance={3} />
                 </group>
 
-                {/* Glass Dome */}
+                {/* Glass Dome — was meshPhysicalMaterial with transmission=0.92 which
+                    forces an extra render-target pass every frame. Swapped for a standard
+                    translucent material — visually near-identical at this scale, zero
+                    render-target cost. Sphere segments also trimmed. */}
                 <mesh position={[0, 2.4, 0]} >
-                    <capsuleGeometry args={[0.7, 1.0, 32, 64]} />
-                    <meshPhysicalMaterial
+                    <capsuleGeometry args={[0.7, 1.0, 16, 24]} />
+                    <meshStandardMaterial
                         transparent
-                        transmission={0.92}
-                        thickness={0.2}
-                        roughness={0.05}
-                        ior={1.5}
+                        roughness={0.15}
+                        metalness={0.05}
                         color="#ffffff"
-                        opacity={0.15}
+                        opacity={0.12}
                         depthWrite={false}
                         side={THREE.DoubleSide}
                     />

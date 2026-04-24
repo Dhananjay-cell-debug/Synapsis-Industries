@@ -249,10 +249,15 @@ function HUDCard({ data }: { data: typeof cardsData[0] }) {
                     {data.title === "AI INTEGRATION" && <ChipIcon />}
                 </group>
 
-                {/* ── Title in header ── */}
+                {/* ── Title in header ──
+                    drei's <Html transform> without distanceFactor maps 1 CSS px = 1 world
+                    unit — so `width: 300px` was literally 300 units wide, producing giant
+                    overlapping text that buried the scene. distanceFactor scales the DOM
+                    element based on camera distance so it tracks the card face naturally. */}
                 <Html
                     transform
                     center
+                    distanceFactor={8}
                     position={[0.1, HEADER_Y, 0.04]}
                     style={{
                         color: CYAN,
@@ -279,6 +284,7 @@ function HUDCard({ data }: { data: typeof cardsData[0] }) {
                     <Html
                         transform
                         center
+                        distanceFactor={8}
                         position={[0, 0, 0.04]}
                         style={{
                             color: "white",
