@@ -9,8 +9,20 @@ import {
     LayoutDashboard, FolderOpen, Layers, Rocket,
     LogOut, ExternalLink, X, ArrowRight,
     Zap, Code2, Globe, ChevronRight, MessageSquare,
-    Inbox, Settings2, Plus, Trash2, Check, Clock, Mail, Play, Send
+    Inbox, Settings2, Plus, Trash2, Check, Clock, Mail, Play, Send,
+    Activity, Columns3,
 } from "lucide-react";
+import CommandView from "@/components/admin/CommandView";
+import PipelineView from "@/components/admin/PipelineView";
+import NotificationCenter from "@/components/admin/NotificationCenter";
+import BlueprintBuilder from "@/components/phases/BlueprintBuilder";
+import IgnitionAdminView from "@/components/phases/IgnitionAdminView";
+import BuildAdminView from "@/components/phases/BuildAdminView";
+import DeliverAdminView from "@/components/phases/DeliverAdminView";
+import HandoverAdminView from "@/components/phases/HandoverAdminView";
+import OrbitAdminView from "@/components/phases/OrbitAdminView";
+import BlueprintViewer from "@/components/phases/BlueprintViewer";
+import { PHASE_NAMES } from "@/lib/phases/constants";
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 
@@ -136,6 +148,7 @@ interface Deal {
     projectDays?: number;
     customQuestions?: string[];
     interestChatHistory?: { role: "user" | "assistant"; content: string }[];
+    phaseData?: any;
 }
 
 // ─── MOCK INBOX DATA (replace with Supabase later) ────────────────────────────
@@ -2374,7 +2387,7 @@ const DISCOVER_QUESTIONS = [
 
 type WorkspaceLeftTab = "questionnaire" | "chat" | "notes";
 
-function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack: () => void }) {
+function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: Deal; onBack: () => void; adminEmail: string }) {
     const [deal, setDeal] = useState(initialDeal);
     const [notes, setNotes] = useState(initialDeal.clientNote || "");
     const [notesSaved, setNotesSaved] = useState(false);
@@ -2385,6 +2398,37 @@ function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack
     const chatBottomRef = useRef<HTMLDivElement>(null);
     const [daysInput, setDaysInput] = useState<string>(String(initialDeal.projectDays || ""));
     const [daysSaved, setDaysSaved] = useState(false);
+    const [callNotes, setCallNotes] = useState<string>(initialDeal.phaseData?.phase1?.callNotes || "");
+    const [callSaving, setCallSaving] = useState(false);
+
+    const callDone = !!deal.phaseData?.phase1?.callCompletedAt;
+
+    const markCallDone = async () => {
+        if (!callNotes.trim() || callNotes.trim().length < 10) {
+            alert("Call notes must be at least 10 characters.");
+            return;
+        }
+        setCallSaving(true);
+        try {
+            const res = await fetch(`/api/deals/${deal.token}/phase/1`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    phaseDataPatch: { callCompletedAt: Date.now(), callNotes: callNotes.trim() },
+                    auditAction: "call.completed",
+                }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setDeal(d => ({ ...d, ...data.deal }));
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert(`Save failed: ${err.error || res.statusText}`);
+            }
+        } finally {
+            setCallSaving(false);
+        }
+    };
 
     const saveProjectDays = async () => {
         const val = parseInt(daysInput);
@@ -2468,8 +2512,8 @@ function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack
                 {/* Journey map */}
                 <div className="ml-auto flex items-center gap-0">
                     {PHASES_MAP.map((p, i) => {
-                        const isCurrent = p.n === 1;
-                        const isPast = p.n === 0;
+                        const isCurrent = p.n === deal.phase;
+                        const isPast = p.n < deal.phase;
                         return (
                             <React.Fragment key={p.n}>
                                 <div className="flex flex-col items-center gap-1">
@@ -2492,7 +2536,7 @@ function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack
                 </div>
                 <div className="shrink-0 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase"
                     style={{ background: "rgba(17,184,234,0.1)", border: "1px solid rgba(17,184,234,0.25)", color: "#11B8EA" }}>
-                    DISCOVER — Phase 1
+                    {PHASE_NAMES[deal.phase] || "PHASE"} — Phase {deal.phase}
                 </div>
             </div>
 
@@ -2514,9 +2558,59 @@ function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack
             <div className="flex-1 overflow-hidden">
                 <div className="grid grid-cols-[1fr_300px] h-full">
 
-                    {/* LEFT — tabbed panel */}
+                    {/* LEFT — phase-aware panel: P2 = Blueprint, P3 = Ignition, otherwise Phase-1 tabs */}
                     <div className="flex flex-col border-r border-white/6 overflow-hidden">
 
+                    {deal.phase === 2 ? (
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <BlueprintBuilder
+                                deal={deal as any}
+                                adminEmail={adminEmail}
+                                onSaved={(updated: any) => setDeal(d => ({ ...d, ...updated }))}
+                            />
+                        </div>
+                    ) : deal.phase === 3 ? (
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <IgnitionAdminView
+                                deal={deal as any}
+                                adminEmail={adminEmail}
+                                onUpdated={(updated: any) => setDeal(d => ({ ...d, ...updated }))}
+                            />
+                        </div>
+                    ) : deal.phase === 4 ? (
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <BuildAdminView
+                                deal={deal as any}
+                                adminEmail={adminEmail}
+                                onUpdated={(updated: any) => setDeal(d => ({ ...d, ...updated }))}
+                            />
+                        </div>
+                    ) : deal.phase === 5 ? (
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <DeliverAdminView
+                                deal={deal as any}
+                                adminEmail={adminEmail}
+                                onUpdated={(updated: any) => setDeal(d => ({ ...d, ...updated }))}
+                            />
+                        </div>
+                    ) : deal.phase === 6 ? (
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <HandoverAdminView
+                                deal={deal as any}
+                                adminEmail={adminEmail}
+                                onUpdated={(updated: any) => setDeal(d => ({ ...d, ...updated }))}
+                            />
+                        </div>
+                    ) : deal.phase === 7 ? (
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <OrbitAdminView
+                                deal={deal as any}
+                                adminEmail={adminEmail}
+                                onUpdated={(updated: any) => setDeal(d => ({ ...d, ...updated }))}
+                            />
+                        </div>
+                    ) : (
+                    <>
                         {/* Left tab bar */}
                         <div className="shrink-0 flex items-center gap-1 px-6 pt-5 pb-0 border-b border-white/6">
                             {([
@@ -2665,6 +2759,8 @@ function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack
 
                             </AnimatePresence>
                         </div>
+                    </>
+                    )}
                     </div>
 
                     {/* RIGHT — Admin Actions */}
@@ -2751,29 +2847,193 @@ function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack
 
                         <div className="h-px bg-white/6 my-1" />
 
-                        {/* 4. GO → Phase 2 */}
-                        <button onClick={() => setActiveAction("go")}
-                            className="w-full px-5 py-4 rounded-xl border transition-all text-left"
-                            style={{
-                                borderColor: activeAction === "go" ? "rgba(17,184,234,0.4)" : "rgba(17,184,234,0.15)",
-                                background: activeAction === "go" ? "rgba(17,184,234,0.06)" : "rgba(17,184,234,0.02)",
-                            }}>
-                            <div className="flex items-center gap-3">
-                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ background: "rgba(17,184,234,0.1)", border: "1px solid rgba(17,184,234,0.2)" }}>
-                                    <ArrowRight size={13} style={{ color: "#11B8EA" }} />
+                        {/* Discovery Call Log — required before GO */}
+                        {deal.phase === 1 && (
+                            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-[9px] tracking-[0.35em] uppercase text-white/30">Discovery Call</p>
+                                    {callDone && (
+                                        <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400">
+                                            <Check size={10} /> Logged
+                                        </span>
+                                    )}
                                 </div>
-                                <div>
-                                    <p className="text-sm font-bold" style={{ color: "#11B8EA" }}>GO → Phase 2</p>
-                                    <p className="text-[10px] text-white/25">Unlock Blueprint</p>
+                                <textarea
+                                    value={callNotes}
+                                    onChange={e => setCallNotes(e.target.value)}
+                                    rows={3}
+                                    placeholder="Call notes (min 10 chars) — required to GO"
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-[#11B8EA]/40 transition-colors resize-none"
+                                />
+                                <button
+                                    onClick={markCallDone}
+                                    disabled={callSaving || callNotes.trim().length < 10}
+                                    className="mt-2 w-full px-3 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all disabled:opacity-40"
+                                    style={{
+                                        background: callDone ? "rgba(16,185,129,0.12)" : "rgba(17,184,234,0.12)",
+                                        border: `1px solid ${callDone ? "rgba(16,185,129,0.3)" : "rgba(17,184,234,0.25)"}`,
+                                        color: callDone ? "#10b981" : "#11B8EA",
+                                    }}>
+                                    {callSaving ? "Saving..." : callDone ? "Update Notes" : "Mark Call Done"}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 4. GO → Phase 2 (only show when in Phase 1, questionnaire complete) */}
+                        {deal.phase === 1 && (
+                            <button
+                                onClick={async () => {
+                                    if (activeAction !== "go") { setActiveAction("go"); return; }
+                                    // Confirm + advance via T1 → 2 (goDecision: proceed)
+                                    const res = await fetch(`/api/deals/${deal.token}/phase/1`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ action: "goDecision", ctx: { decision: "go", adminEmail } }),
+                                    });
+                                    if (res.ok) {
+                                        const data = await res.json();
+                                        setDeal(d => ({ ...d, ...data.deal }));
+                                        setActiveAction(null);
+                                    } else {
+                                        const err = await res.json().catch(() => ({}));
+                                        alert(`GO failed: ${err.error || res.statusText}`);
+                                    }
+                                }}
+                                className="w-full px-5 py-4 rounded-xl border transition-all text-left"
+                                style={{
+                                    borderColor: activeAction === "go" ? "rgba(17,184,234,0.4)" : "rgba(17,184,234,0.15)",
+                                    background: activeAction === "go" ? "rgba(17,184,234,0.06)" : "rgba(17,184,234,0.02)",
+                                }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: "rgba(17,184,234,0.1)", border: "1px solid rgba(17,184,234,0.2)" }}>
+                                        <ArrowRight size={13} style={{ color: "#11B8EA" }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold" style={{ color: "#11B8EA" }}>
+                                            {activeAction === "go" ? "Confirm — advance now" : "GO → Phase 2"}
+                                        </p>
+                                        <p className="text-[10px] text-white/25">
+                                            {activeAction === "go" ? "Click again to unlock Blueprint" : "Unlock Blueprint"}
+                                        </p>
+                                    </div>
+                                </div>
+                            </button>
+                        )}
+                        {deal.phase === 2 && (
+                            <div
+                                className="w-full px-5 py-4 rounded-xl border text-left"
+                                style={{
+                                    borderColor: "rgba(17,184,234,0.25)",
+                                    background: "rgba(17,184,234,0.04)",
+                                }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: "rgba(17,184,234,0.12)", border: "1px solid rgba(17,184,234,0.25)" }}>
+                                        <Check size={13} style={{ color: "#11B8EA" }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold" style={{ color: "#11B8EA" }}>Phase 2 active</p>
+                                        <p className="text-[10px] text-white/35">Compose the Blueprint on the left</p>
+                                    </div>
                                 </div>
                             </div>
-                            {activeAction === "go" && (
-                                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] text-[#11B8EA]/60 mt-2 ml-10">
-                                    Phase 2 coming soon — Blueprint builder
-                                </motion.p>
-                            )}
-                        </button>
+                        )}
+                        {deal.phase === 3 && (
+                            <div
+                                className="w-full px-5 py-4 rounded-xl border text-left"
+                                style={{
+                                    borderColor: "rgba(17,184,234,0.25)",
+                                    background: "rgba(17,184,234,0.04)",
+                                }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: "rgba(17,184,234,0.12)", border: "1px solid rgba(17,184,234,0.25)" }}>
+                                        <Check size={13} style={{ color: "#11B8EA" }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold" style={{ color: "#11B8EA" }}>Phase 3 active</p>
+                                        <p className="text-[10px] text-white/35">Review payment + assets, then confirm to advance</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {deal.phase === 4 && (
+                            <div
+                                className="w-full px-5 py-4 rounded-xl border text-left"
+                                style={{
+                                    borderColor: "rgba(17,184,234,0.25)",
+                                    background: "rgba(17,184,234,0.04)",
+                                }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: "rgba(17,184,234,0.12)", border: "1px solid rgba(17,184,234,0.25)" }}>
+                                        <Check size={13} style={{ color: "#11B8EA" }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold" style={{ color: "#11B8EA" }}>Phase 4 active</p>
+                                        <p className="text-[10px] text-white/35">Sprints, change orders, mid-payment, then submit final</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {deal.phase === 5 && (
+                            <div
+                                className="w-full px-5 py-4 rounded-xl border text-left"
+                                style={{
+                                    borderColor: "rgba(17,184,234,0.25)",
+                                    background: "rgba(17,184,234,0.04)",
+                                }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: "rgba(17,184,234,0.12)", border: "1px solid rgba(17,184,234,0.25)" }}>
+                                        <Check size={13} style={{ color: "#11B8EA" }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold" style={{ color: "#11B8EA" }}>Phase 5 active</p>
+                                        <p className="text-[10px] text-white/35">Client reviewing — handle revisions until they approve</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {deal.phase === 6 && (
+                            <div
+                                className="w-full px-5 py-4 rounded-xl border text-left"
+                                style={{
+                                    borderColor: "rgba(245,158,11,0.25)",
+                                    background: "rgba(245,158,11,0.04)",
+                                }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                                        <Check size={13} style={{ color: "#F59E0B" }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold" style={{ color: "#F59E0B" }}>Phase 6 active</p>
+                                        <p className="text-[10px] text-white/35">Final payment → deploy → handover package → Orbit</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {deal.phase === 7 && (
+                            <div
+                                className="w-full px-5 py-4 rounded-xl border text-left"
+                                style={{
+                                    borderColor: "rgba(17,184,234,0.25)",
+                                    background: "rgba(17,184,234,0.04)",
+                                }}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: "rgba(17,184,234,0.12)", border: "1px solid rgba(17,184,234,0.25)" }}>
+                                        <Check size={13} style={{ color: "#11B8EA" }} />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold" style={{ color: "#11B8EA" }}>Phase 7 — Orbit</p>
+                                        <p className="text-[10px] text-white/35">Long-term. Check-ins · retainer · referrals.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* 5. NO-GO */}
                         <button onClick={() => setActiveAction(activeAction === "nogo" ? null : "nogo")}
@@ -2810,10 +3070,86 @@ function ClientWorkspaceView({ deal: initialDeal, onBack }: { deal: Deal; onBack
                                     </span>
                                 </div>
                             </div>
+
+                            <ForcePhaseJumpPanel deal={deal} adminEmail={adminEmail} onUpdated={(d) => setDeal(prev => ({ ...prev, ...d }))} />
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// ─── DEV: FORCE PHASE JUMP (god-mode override, audit-tracked) ──────────────────
+function ForcePhaseJumpPanel({ deal, adminEmail, onUpdated }: {
+    deal: Deal; adminEmail: string; onUpdated: (d: Deal) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [toPhase, setToPhase] = useState<number>(deal.phase);
+    const [note, setNote] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState<string | null>(null);
+
+    const submit = async () => {
+        if (note.trim().length < 10) { setErr("Audit note must be ≥10 chars."); return; }
+        if (toPhase === deal.phase) { setErr("Already on this phase."); return; }
+        setBusy(true); setErr(null);
+        try {
+            const res = await fetch(`/api/deals/${deal.token}/phase/${deal.phase}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "forcePhaseJump",
+                    ctx: { adminEmail, toPhase, note: note.trim() },
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Jump failed");
+            onUpdated(data.deal);
+            setOpen(false); setNote("");
+        } catch (e) {
+            setErr(e instanceof Error ? e.message : "Failed");
+        } finally { setBusy(false); }
+    };
+
+    if (!open) {
+        return (
+            <button onClick={() => setOpen(true)}
+                className="mt-3 w-full text-left text-[9px] tracking-[0.25em] uppercase text-white/20 hover:text-amber-400/70 transition-colors">
+                ▸ Dev override
+            </button>
+        );
+    }
+
+    return (
+        <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.03] p-3 space-y-2">
+            <div className="flex items-center justify-between">
+                <p className="text-[9px] tracking-[0.3em] uppercase text-amber-400/80 font-bold">Force phase jump</p>
+                <button onClick={() => { setOpen(false); setErr(null); }} className="text-white/30 hover:text-white/60 text-[10px]">×</button>
+            </div>
+            <p className="text-[10px] text-white/40 leading-snug">
+                God-mode override. Audited. Use only when automated flow is stuck.
+            </p>
+            <div className="flex gap-1.5 flex-wrap">
+                {[0,1,2,3,4,5,6,7].map(p => (
+                    <button key={p} onClick={() => setToPhase(p)}
+                        className={`w-7 h-7 rounded text-[10px] font-bold border transition-colors ${
+                            toPhase === p
+                                ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
+                                : "border-white/10 bg-white/[0.02] text-white/40 hover:text-white/70"
+                        } ${p === deal.phase ? "ring-1 ring-emerald-400/30" : ""}`}>
+                        {p}
+                    </button>
+                ))}
+            </div>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
+                placeholder="Audit note (≥10 chars) — why this jump?"
+                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-[11px] text-white outline-none focus:border-amber-500/40 resize-none" />
+            {err && <p className="text-red-400 text-[10px]">{err}</p>}
+            <button onClick={submit} disabled={busy}
+                className="w-full rounded bg-amber-500/20 border border-amber-500/40 text-amber-200 text-[11px] font-semibold py-1.5 disabled:opacity-30">
+                {busy ? "Jumping…" : `Jump → Phase ${toPhase}`}
+            </button>
         </div>
     );
 }
@@ -2828,6 +3164,8 @@ const NAV = [
 ];
 
 const ADMIN_NAV = [
+    { id: "command", label: "Mission Control", icon: Activity },
+    { id: "pipeline", label: "Pipeline", icon: Columns3 },
     { id: "inbox", label: "Inbox", icon: Inbox },
     { id: "manage", label: "Projects", icon: Settings2 },
 ];
@@ -3130,7 +3468,7 @@ export default function Dashboard() {
     );
 
     // If someone tries to access admin views without being admin, fall back to home
-    const safeView = (["inbox", "manage", "workspace"].includes(view) && !isAdmin) ? "home" : view;
+    const safeView = (["inbox", "manage", "workspace", "command", "pipeline"].includes(view) && !isAdmin) ? "home" : view;
 
     return (
         <div className="h-screen w-full flex bg-[#0A0F1E] text-white font-outfit overflow-hidden relative">
@@ -3150,7 +3488,10 @@ export default function Dashboard() {
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         <span className="text-[10px] tracking-[0.35em] uppercase text-white/25">All Systems Operational</span>
                     </div>
-                    <Link href="/" className="text-[10px] text-white/25 hover:text-white/50 transition-colors tracking-[0.2em] uppercase">← Public Site</Link>
+                    <div className="flex items-center gap-3">
+                        {isAdmin && <NotificationCenter onOpenDeal={openWorkspace} />}
+                        <Link href="/" className="text-[10px] text-white/25 hover:text-white/50 transition-colors tracking-[0.2em] uppercase">← Public Site</Link>
+                    </div>
                 </header>
 
                 {/* Content */}
@@ -3160,9 +3501,11 @@ export default function Dashboard() {
                         {safeView === "work" && <motion.div key="w" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><WorkView projects={projects} /></motion.div>}
                         {safeView === "services" && <motion.div key="s" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><ServicesView onStartProject={() => setView("start")} /></motion.div>}
                         {safeView === "start" && <motion.div key="p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><StartProjectView onSubmit={addSubmission} /></motion.div>}
+                        {safeView === "command" && <motion.div key="c" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><CommandView deals={deals as any} onJump={(v, token) => { setView(v); if (v === "workspace" && token) openWorkspace(token); }} /></motion.div>}
+                        {safeView === "pipeline" && <motion.div key="pl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><PipelineView deals={deals as any} onOpen={openWorkspace} /></motion.div>}
                         {safeView === "inbox" && <motion.div key="i" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><InboxView submissions={submissions} onDelete={deleteSubmission} deals={deals} onElect={electDeal} onReject={rejectDeal} onOpenWorkspace={openWorkspace} onUpdateDeal={(token, updates) => setDeals(prev => prev.map(d => d.token === token ? { ...d, ...updates } : d))} onInterested={markInterested} /></motion.div>}
                         {safeView === "manage" && <motion.div key="m" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><ManageProjectsView projects={projects} saveProject={saveProject} deleteProject={deleteProject} updateProject={updateProject} /></motion.div>}
-                        {safeView === "workspace" && activeWorkspace && <motion.div key="ws" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="h-full"><ClientWorkspaceView deal={activeWorkspace} onBack={() => setView("inbox")} /></motion.div>}
+                        {safeView === "workspace" && activeWorkspace && <motion.div key="ws" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="h-full"><ClientWorkspaceView deal={activeWorkspace} onBack={() => setView("inbox")} adminEmail={session?.user?.email || ""} /></motion.div>}
                     </AnimatePresence>
                 </div>
             </div>

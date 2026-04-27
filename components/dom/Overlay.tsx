@@ -89,20 +89,20 @@ export default function Overlay() {
                 style={{
                     position: "absolute",
                     top: "47.5%",
-                    left: "81.5%",
+                    left: "68%",
                     transform: "translate(-50%, -50%)",
                 }}
             >
                 <LetterReveal
                     text="SYNAPSIS"
                     className="font-serif leading-[1.0] drop-shadow-sm block"
-                    style={{ fontSize: "4rem" }}
+                    style={{ fontSize: "clamp(2.5rem, 4vw, 3.5rem)" }}
                     delay={300}
                 />
                 <LetterReveal
                     text="INDUSTRIES"
                     className="font-serif leading-[1.0] mb-2 drop-shadow-sm block"
-                    style={{ fontSize: "4rem" }}
+                    style={{ fontSize: "clamp(2.5rem, 4vw, 3.5rem)" }}
                     delay={700}
                 />
                 <LetterReveal

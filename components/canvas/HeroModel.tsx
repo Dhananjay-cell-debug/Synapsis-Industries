@@ -16,12 +16,12 @@ function GoldenGlobe() {
     const [canvas, texture] = useMemo(() => {
         if (typeof document === "undefined") return [null as unknown as HTMLCanvasElement, null as unknown as THREE.CanvasTexture];
         const c = document.createElement("canvas");
-        c.width = 2048;
-        c.height = 1024;
+        c.width = 1024;
+        c.height = 512;
         const ctx = c.getContext("2d");
         if (ctx) {
             ctx.fillStyle = "#1a1a1a";
-            ctx.fillRect(0, 0, 2048, 1024);
+            ctx.fillRect(0, 0, 1024, 512);
         }
         const tex = new THREE.CanvasTexture(c);
         return [c, tex];
@@ -35,10 +35,10 @@ function GoldenGlobe() {
             .then((res) => res.json())
             .then((world) => {
                 const countries = topojson.feature(world, world.objects.countries) as any;
-                const projection = d3.geoEquirectangular().translate([1024, 512]).scale(2048 / (2 * Math.PI));
+                const projection = d3.geoEquirectangular().translate([512, 256]).scale(1024 / (2 * Math.PI));
                 const path = d3.geoPath().projection(projection).context(ctx);
                 ctx.fillStyle = "#6c4217";
-                ctx.fillRect(0, 0, 2048, 1024);
+                ctx.fillRect(0, 0, 1024, 512);
                 countries.features.forEach((feature: any) => {
                     ctx.beginPath();
                     path(feature);
@@ -63,7 +63,7 @@ function GoldenGlobe() {
 
     return (
         <mesh ref={globeRef} castShadow receiveShadow>
-            <sphereGeometry args={[0.5, 64, 64]} />
+            <sphereGeometry args={[0.5, 32, 32]} />
             <meshStandardMaterial
                 ref={materialRef}
                 map={texture}
@@ -521,7 +521,7 @@ export default function HeroModel() {
                 {/* Floating Orb inside dome */}
                 <group ref={floatRef} position={[0, 2.4, 0]}>
                     <mesh castShadow={false} receiveShadow={false}>
-                        <sphereGeometry args={[0.28, 64, 64]} />
+                        <sphereGeometry args={[0.28, 32, 32]} />
                         <meshPhysicalMaterial
                             color="#11B8EA"
                             transparent={true}
@@ -556,10 +556,10 @@ export default function HeroModel() {
 
                 {/* Glass Dome */}
                 <mesh position={[0, 2.4, 0]} castShadow>
-                    <capsuleGeometry args={[0.7, 1.0, 32, 64]} />
+                    <capsuleGeometry args={[0.7, 1.0, 16, 32]} />
                     <MeshTransmissionMaterial
                         backside
-                        samples={4}
+                        samples={1}
                         thickness={0.2}
                         chromaticAberration={0.02}
                         anisotropy={0}

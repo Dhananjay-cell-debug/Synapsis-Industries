@@ -8,10 +8,17 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-mo
 import { signOut, useSession } from "next-auth/react";
 import {
     ArrowRight, Clock, CheckCircle, XCircle, AlertCircle,
-    LayoutDashboard, Map, FileQuestion, MessageSquare, Layers,
+    LayoutDashboard, Map, FileQuestion, MessageSquare, Layers, Rocket, Hammer, Sparkles, Package,
     Send, LogOut, ChevronRight, Zap, Target, Users, HelpCircle, Lock
 } from "lucide-react";
 import PaymentGate from "@/components/ui/PaymentGate";
+import BlueprintViewer from "@/components/phases/BlueprintViewer";
+import IgnitionView from "@/components/phases/IgnitionView";
+import BuildView from "@/components/phases/BuildView";
+import DeliverView from "@/components/phases/DeliverView";
+import HandoverView from "@/components/phases/HandoverView";
+import OrbitView from "@/components/phases/OrbitView";
+import { PHASE_NAMES } from "@/lib/phases/constants";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -126,6 +133,7 @@ interface Deal {
     payments?: DealPayment[];
     projectDays?: number;
     customQuestions?: string[];
+    phaseData?: any;
 }
 
 // ─── Phase Duration Calculator ────────────────────────────────────────────────
@@ -426,8 +434,8 @@ function OverviewTab({ deal, onQuestionnaireClick, onProcessClick, onUnlock, unl
             )}
 
 
-            {/* ─── Payment Gate — shows when phase requires payment ─── */}
-            {deal.totalPrice && [3, 4, 6].includes(deal.phase || 0) && (
+            {/* ─── Payment Gate — only legacy gate for phase 6; 3/4 live in their tabs ─── */}
+            {deal.totalPrice && [6].includes(deal.phase || 0) && (
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                     <PaymentGate
                         token={deal.token}
@@ -1360,12 +1368,47 @@ function ChatTab({ deal, onSend }: { deal: Deal; onSend: (text: string, imageUrl
 // ─── Main Workspace ──────────────────────────────────────────────────────────
 
 function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusUpdate: (d: Deal) => void }) {
-    const [activeTab, setActiveTab] = useState<"overview" | "process" | "questionnaire" | "chat">("overview");
+    const phase = deal.phase ?? 1;
+    const blueprintAvailable = phase >= 2 && !!deal.phaseData?.phase2?.blueprint;
+    const ignitionAvailable = phase >= 3;
+    const buildAvailable = phase >= 4;
+    const deliverAvailable = phase >= 5;
+    const handoverAvailable = phase >= 6;
+    const orbitAvailable = phase >= 7;
+    const [activeTab, setActiveTab] = useState<"overview" | "process" | "questionnaire" | "chat" | "blueprint" | "ignition" | "build" | "deliver" | "handover" | "orbit">(
+        orbitAvailable ? "orbit" : handoverAvailable ? "handover" : deliverAvailable ? "deliver" : buildAvailable ? "build" : ignitionAvailable ? "ignition" : blueprintAvailable ? "blueprint" : "overview"
+    );
     const { token } = useParams();
 
-    const TAB_ORDER = ["overview", "process", "questionnaire", "chat"];
-    const canAccessTab = (tabId: string) =>
-        TAB_ORDER.indexOf(tabId) <= TAB_ORDER.indexOf(activeTab);
+    // Auto-jump on phase advancement (first arrival into 2/3/4/5/6/7)
+    const lastPhaseRef = useRef(phase);
+    useEffect(() => {
+        if (lastPhaseRef.current < 7 && phase >= 7) {
+            setActiveTab("orbit");
+        } else if (lastPhaseRef.current < 6 && phase >= 6) {
+            setActiveTab("handover");
+        } else if (lastPhaseRef.current < 5 && phase >= 5) {
+            setActiveTab("deliver");
+        } else if (lastPhaseRef.current < 4 && phase >= 4) {
+            setActiveTab("build");
+        } else if (lastPhaseRef.current < 3 && phase >= 3) {
+            setActiveTab("ignition");
+        } else if (lastPhaseRef.current < 2 && phase >= 2 && blueprintAvailable) {
+            setActiveTab("blueprint");
+        }
+        lastPhaseRef.current = phase;
+    }, [phase, blueprintAvailable]);
+
+    const TAB_ORDER = ["overview", "process", "questionnaire", "chat", "blueprint", "ignition", "build", "deliver", "handover", "orbit"];
+    const canAccessTab = (tabId: string) => {
+        if (tabId === "blueprint") return blueprintAvailable;
+        if (tabId === "ignition") return ignitionAvailable;
+        if (tabId === "build") return buildAvailable;
+        if (tabId === "deliver") return deliverAvailable;
+        if (tabId === "handover") return handoverAvailable;
+        if (tabId === "orbit") return orbitAvailable;
+        return TAB_ORDER.indexOf(tabId) <= TAB_ORDER.indexOf(activeTab);
+    };
 
     const handleUnlock = () => {
         setActiveTab("process");
@@ -1425,6 +1468,12 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
         { id: "process", label: "Process", icon: <Map size={14} /> },
         { id: "questionnaire", label: "Questionnaire", icon: <FileQuestion size={14} /> },
         { id: "chat", label: "Chat", icon: <MessageSquare size={14} /> },
+        ...(blueprintAvailable ? [{ id: "blueprint", label: "Blueprint", icon: <Layers size={14} /> }] : []),
+        ...(ignitionAvailable ? [{ id: "ignition", label: "Ignition", icon: <Rocket size={14} /> }] : []),
+        ...(buildAvailable ? [{ id: "build", label: "Build", icon: <Hammer size={14} /> }] : []),
+        ...(deliverAvailable ? [{ id: "deliver", label: "Deliver", icon: <Sparkles size={14} /> }] : []),
+        ...(handoverAvailable ? [{ id: "handover", label: "Handover", icon: <Package size={14} /> }] : []),
+        ...(orbitAvailable ? [{ id: "orbit", label: "Orbit", icon: <Sparkles size={14} /> }] : []),
     ];
 
     const questionnaireNotDone = !deal.questionnaire;
@@ -1460,7 +1509,9 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                 <div className="px-4 mb-2">
                     <div className="flex items-center gap-2 px-3 py-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#11B8EA] shrink-0" />
-                        <p className="text-[9px] font-black tracking-[0.3em] uppercase text-[#11B8EA]">Phase 1 · Discover</p>
+                        <p className="text-[9px] font-black tracking-[0.3em] uppercase text-[#11B8EA]">
+                            Phase {phase} · {(PHASE_NAMES[phase] || "DISCOVER").toLowerCase()}
+                        </p>
                     </div>
                 </div>
 
@@ -1541,6 +1592,42 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                             {activeTab === "process" && <ProcessTab deal={deal} onQuestionnaireUnlock={handleQuestionnaireUnlock} />}
                             {activeTab === "questionnaire" && <QuestionnaireTab deal={deal} onSubmit={handleQuestionnaireSubmit} />}
                             {activeTab === "chat" && <ChatTab deal={deal} onSend={handleSendMessage} />}
+                            {activeTab === "blueprint" && (
+                                <BlueprintViewer
+                                    deal={deal as any}
+                                    onUpdated={(updated: any) => onStatusUpdate({ ...deal, ...updated })}
+                                />
+                            )}
+                            {activeTab === "ignition" && (
+                                <IgnitionView
+                                    deal={deal as any}
+                                    onUpdated={(updated: any) => onStatusUpdate({ ...deal, ...updated })}
+                                />
+                            )}
+                            {activeTab === "build" && (
+                                <BuildView
+                                    deal={deal as any}
+                                    onUpdated={(updated: any) => onStatusUpdate({ ...deal, ...updated })}
+                                />
+                            )}
+                            {activeTab === "deliver" && (
+                                <DeliverView
+                                    deal={deal as any}
+                                    onUpdated={(updated: any) => onStatusUpdate({ ...deal, ...updated })}
+                                />
+                            )}
+                            {activeTab === "handover" && (
+                                <HandoverView
+                                    deal={deal as any}
+                                    onUpdated={(updated: any) => onStatusUpdate({ ...deal, ...updated })}
+                                />
+                            )}
+                            {activeTab === "orbit" && (
+                                <OrbitView
+                                    deal={deal as any}
+                                    onUpdated={(updated: any) => onStatusUpdate({ ...deal, ...updated })}
+                                />
+                            )}
                         </motion.div>
                     </AnimatePresence>
                 </div>

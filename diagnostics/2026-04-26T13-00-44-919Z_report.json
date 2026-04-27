@@ -1,0 +1,177 @@
+{
+  "timestamp": "2026-04-26T13-00-44-919Z",
+  "base": "http://127.0.0.1:3001",
+  "routes": [
+    {
+      "path": "/",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+          "location": {
+            "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js",
+            "lineNumber": 38559,
+            "columnNumber": 16
+          }
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "location": {
+            "url": "http://127.0.0.1:3001/favicon.ico",
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "type": "warning",
+          "text": "Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly.",
+          "location": {
+            "url": "webpack-internal:///(app-pages-browser)/./node_modules/motion-utils/dist/es/warn-once.mjs",
+            "lineNumber": 15,
+            "columnNumber": 12
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GPOS table LookupType 8 format 2",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 17211
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GPOS table LookupType 5 format 1",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 17211
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GSUB table LookupType 6 format 2",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 19642
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GSUB table LookupType 6 format 1",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 19642
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GPOS table LookupType 8 format 2",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 17211
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GPOS table LookupType 5 format 1",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 17211
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GSUB table LookupType 6 format 2",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 19642
+          }
+        },
+        {
+          "type": "debug",
+          "text": "unsupported GSUB table LookupType 6 format 1",
+          "location": {
+            "url": "blob:http://127.0.0.1:3001/c5a6b2ec-a4f4-43ea-bbe9-312997514c5d",
+            "lineNumber": 4,
+            "columnNumber": 19642
+          }
+        },
+        {
+          "type": "warning",
+          "text": "THREE.WebGLProgram: Program Info Log: (928,7-59): warning X3557: loop only executes for 1 iteration(s), consider removing [loop]\n\n\n\u0000",
+          "location": {
+            "url": "webpack-internal:///(app-pages-browser)/./node_modules/three/build/three.module.js",
+            "lineNumber": 20560,
+            "columnNumber": 12
+          }
+        },
+        {
+          "type": "warning",
+          "text": "THREE.WebGLProgram: Program Info Log: (932,7-59): warning X3557: loop only executes for 1 iteration(s), consider removing [loop]\n\n\n\u0000",
+          "location": {
+            "url": "webpack-internal:///(app-pages-browser)/./node_modules/three/build/three.module.js",
+            "lineNumber": 20560,
+            "columnNumber": 12
+          }
+        }
+      ],
+      "pageErrors": [],
+      "requestFailures": [],
+      "badResponses": [],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-00-44-919Z_home.png",
+      "loadStatus": 200,
+      "nextErrorOverlay": false,
+      "bodyTextLength": 7324
+    },
+    {
+      "path": "/dashboard",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+          "location": {
+            "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js",
+            "lineNumber": 38559,
+            "columnNumber": 16
+          }
+        }
+      ],
+      "pageErrors": [],
+      "requestFailures": [],
+      "badResponses": [],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-00-44-919Z_dashboard.png",
+      "loadStatus": 200,
+      "nextErrorOverlay": false,
+      "bodyTextLength": 1570
+    },
+    {
+      "path": "/client/qsk602y00z",
+      "console": [
+        {
+          "type": "info",
+          "text": "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+          "location": {
+            "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js",
+            "lineNumber": 38559,
+            "columnNumber": 16
+          }
+        }
+      ],
+      "pageErrors": [],
+      "requestFailures": [],
+      "badResponses": [],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-00-44-919Z_client_portal.png",
+      "loadStatus": 200,
+      "nextErrorOverlay": false,
+      "bodyTextLength": 1497
+    }
+  ]
+}

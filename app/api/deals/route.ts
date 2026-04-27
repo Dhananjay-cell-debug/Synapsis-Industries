@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
+import type { PhaseData, AuditEntry, ChatMessage } from "@/lib/phases/schema";
 
 const SUBMISSIONS_FILE = path.join(process.cwd(), "data", "submissions.json");
 
@@ -67,12 +68,18 @@ export interface Deal {
     clientNote?: string;
     questionnaire?: Record<string, string>;
     questionnaireSubmittedAt?: number;
-    messages?: DealMessage[];
-    totalPrice?: number;       // Set by admin (USD) — drives all payment calculations
-    payments?: DealPayment[];  // Tracks 30% / 30% / 40% phase payments
-    projectDays?: number;      // Total project duration in days — drives phase duration calc
-    customQuestions?: string[]; // Admin-crafted per-client questions (via AI chat builder)
+    messages?: DealMessage[];                   // LEGACY — phase-agnostic chat, kept for back-compat
+    totalPrice?: number;                        // INR — drives all payment calculations (derived from blueprint.investmentTotal)
+    payments?: DealPayment[];                   // Tracks 30% / 30% / 40% phase payments
+    projectDays?: number;                       // Total project duration in days — drives phase duration calc
+    customQuestions?: string[];                 // Admin-crafted per-client questions (via AI chat builder)
     interestChatHistory?: { role: "user" | "assistant"; content: string }[]; // Kimi K2 chat log
+    // ─── Phase engine additions (Sprint 0) ───
+    phaseData?: PhaseData;                      // Per-phase structured data (Phase1Data ... Phase7Data)
+    audit?: AuditEntry[];                       // Immutable mutation log — every state change appends here
+    chatMessages?: ChatMessage[];               // NEW — per-phase typed chat threads (replaces messages[] going forward)
+    clientId?: string;                          // Stable identifier linking multiple deals from same client (Phase 7 → new project)
+    lastInteractionAt?: number;                 // Most recent client OR admin activity — powers ghost detection
 }
 
 async function readDeals(): Promise<Deal[]> {

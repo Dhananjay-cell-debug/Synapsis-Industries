@@ -154,13 +154,36 @@ function ProblemSection({ progress }: { progress: number }) {
 export default function Home() {
     const [activeSection, setActiveSection] = useState(0);
     const [s3Progress, setS3Progress] = useState(0);
+    const s3ProgressRef = useRef(0);
+    const activeSectionRef = useRef(0);
     const config = useProblemStore();
     useEffect(() => {
+        if ("scrollRestoration" in window.history) {
+            window.history.scrollRestoration = "manual";
+        }
+        window.scrollTo(0, 0);
+    }, []);
+    useEffect(() => {
+        let ticking = false;
         const handleScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                ticking = false;
             const scrollY = window.scrollY, vh = window.innerHeight;
-            if (scrollY < vh * 0.6) setActiveSection(0); else if (scrollY < vh * 4.5) setActiveSection(1); else setActiveSection(2);
+            const nextSection = scrollY < vh * 0.6 ? 0 : scrollY < vh * 4.5 ? 1 : 2;
+            if (activeSectionRef.current !== nextSection) {
+                activeSectionRef.current = nextSection;
+                setActiveSection(nextSection);
+            }
             const s3Start = (vh * config.startVh) / 100, s3Duration = (vh * config.durationVh) / 100;
-            const currentP = (scrollY - s3Start) / s3Duration; setS3Progress(Math.max(0, Math.min(1, currentP)));
+            const currentP = (scrollY - s3Start) / s3Duration;
+            const nextProgress = Math.max(0, Math.min(1, currentP));
+            if (Math.abs(s3ProgressRef.current - nextProgress) > 0.005) {
+                s3ProgressRef.current = nextProgress;
+                setS3Progress(nextProgress);
+            }
+            });
         };
         window.addEventListener("scroll", handleScroll, { passive: true }); handleScroll();
         return () => window.removeEventListener("scroll", handleScroll);

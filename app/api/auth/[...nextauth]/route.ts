@@ -1,34 +1,5 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-
-const authOptions: NextAuthOptions = {
-    providers: [
-        GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-        }),
-    ],
-    pages: {
-        signIn: "/auth/signin",   // custom sign-in page (optional)
-    },
-    callbacks: {
-        async session({ session, token }) {
-            if (session.user && token.sub) {
-                (session.user as { id?: string; role?: string }).id = token.sub;
-                (session.user as { id?: string; role?: string }).role = token.role as string;
-            }
-            return session;
-        },
-        async jwt({ token, account }) {
-            if (account) {
-                token.accessToken = account.access_token;
-                // Set admin role if email matches the owner
-                token.role = token.email === process.env.ADMIN_EMAIL ? "admin" : "visitor";
-            }
-            return token;
-        },
-    },
-};
+import NextAuth from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

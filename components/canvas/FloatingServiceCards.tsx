@@ -6,7 +6,7 @@ import * as THREE from "three";
 
 // ─── Circuit board canvas texture ──────────────────────────────────────────
 function makeCircuitTexture(): THREE.CanvasTexture {
-    const W = 512, H = 384;
+    const W = 256, H = 192;
     const canvas = document.createElement("canvas");
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext("2d")!;

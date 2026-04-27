@@ -1,0 +1,1184 @@
+{
+  "env": {
+    "canvases": [
+      {
+        "idx": 0,
+        "width": 1440,
+        "height": 900,
+        "hasGL": true,
+        "contextLost": false
+      },
+      {
+        "idx": 1,
+        "width": 1424,
+        "height": 900,
+        "hasGL": true,
+        "contextLost": false
+      }
+    ],
+    "lenis": "absent",
+    "docHeight": 26369,
+    "viewportHeight": 900,
+    "scrollMax": 25469,
+    "fixedEls": [
+      {
+        "tag": "DIV",
+        "id": "",
+        "classes": "",
+        "zIndex": "99999",
+        "opacity": "1",
+        "pointerEvents": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "classes": "fixed bottom-4 left-4 z-[10000] bg-black/80 text-white p-3 rounded-full border b",
+        "zIndex": "10000",
+        "opacity": "1",
+        "pointerEvents": "auto"
+      },
+      {
+        "tag": "DIV",
+        "id": "ticker-section-container",
+        "classes": "",
+        "zIndex": "8",
+        "opacity": "0",
+        "pointerEvents": "none"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "classes": "",
+        "zIndex": "10",
+        "opacity": "0",
+        "pointerEvents": "none"
+      },
+      {
+        "tag": "DIV",
+        "id": "cave-canvas-container",
+        "classes": "fixed inset-0 z-0 h-screen w-full",
+        "zIndex": "0",
+        "opacity": "1",
+        "pointerEvents": "auto"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "classes": "fixed inset-0 z-[1] pointer-events-none",
+        "zIndex": "1",
+        "opacity": "1",
+        "pointerEvents": "none"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "classes": "fixed inset-0 z-[1] pointer-events-none",
+        "zIndex": "1",
+        "opacity": "1",
+        "pointerEvents": "none"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "classes": "fixed inset-0 z-[2] pointer-events-none opacity-[0.04]",
+        "zIndex": "2",
+        "opacity": "0.04",
+        "pointerEvents": "none"
+      }
+    ]
+  },
+  "stops": [
+    {
+      "vh": 0,
+      "label": "0_hero",
+      "pixelY": 0,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "",
+          "rect": {
+            "t": 0,
+            "h": 5400
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_0_hero.png"
+    },
+    {
+      "vh": 1,
+      "label": "1_hero_settle",
+      "pixelY": 900,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "The Reality of Content Here's a timeline of how the algorit",
+          "rect": {
+            "t": -900,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "",
+          "rect": {
+            "t": -900,
+            "h": 5400
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_1_hero_settle.png"
+    },
+    {
+      "vh": 2,
+      "label": "2_pre_peel",
+      "pixelY": 1800,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -1800,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "",
+          "rect": {
+            "t": -1800,
+            "h": 5400
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_2_pre_peel.png"
+    },
+    {
+      "vh": 5,
+      "label": "3_cave_peel",
+      "pixelY": 4500,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -4500,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "",
+          "rect": {
+            "t": -4500,
+            "h": 5400
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_3_cave_peel.png"
+    },
+    {
+      "vh": 6,
+      "label": "4_ticker",
+      "pixelY": 5400,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -5400,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_4_ticker.png"
+    },
+    {
+      "vh": 7,
+      "label": "5_post_ticker",
+      "pixelY": 6300,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -6300,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "The Reality of Content Here's a timeline of how the algorit",
+          "rect": {
+            "t": 0,
+            "h": 7200
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_5_post_ticker.png"
+    },
+    {
+      "vh": 9,
+      "label": "6_problem",
+      "pixelY": 8100,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -8100,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "The Reality of Content Here's a timeline of how the algorit",
+          "rect": {
+            "t": -1800,
+            "h": 7200
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_6_problem.png"
+    },
+    {
+      "vh": 11,
+      "label": "7_timeline_start",
+      "pixelY": 9900,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -9900,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "The Reality of Content Here's a timeline of how the algorit",
+          "rect": {
+            "t": -3600,
+            "h": 7200
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "H3",
+          "id": null,
+          "text": "The Reality",
+          "rect": {
+            "t": 62,
+            "h": 48
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_7_timeline_start.png"
+    },
+    {
+      "vh": 14,
+      "label": "8_timeline_mid",
+      "pixelY": 12600,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -12600,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "The Reality of Content Here's a timeline of how the algorit",
+          "rect": {
+            "t": -6300,
+            "h": 7200
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_8_timeline_mid.png"
+    },
+    {
+      "vh": 18,
+      "label": "9_philosophy",
+      "pixelY": 16200,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -16200,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "GROWTH MATRIX ASSET 02/MARKETING AttentionisCurrency. Abeau",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "AttentionisCurrency.",
+          "rect": {
+            "t": 246,
+            "h": 120
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_9_philosophy.png"
+    },
+    {
+      "vh": 22,
+      "label": "10_services",
+      "pixelY": 19800,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -19800,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THEVAULT ArchitecturalWins. WEB Kinora Kinora is a full-sta",
+          "rect": {
+            "t": -900,
+            "h": 2181
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_10_services.png"
+    },
+    {
+      "vh": 26,
+      "label": "11_case_studies",
+      "pixelY": 23400,
+      "newErrors": 0,
+      "visibleProbe": [
+        {
+          "tag": "DIV",
+          "id": "ticker-section-container",
+          "text": "SYNAPSIS INDUSTRIES Systems that scale. Built for founders",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 0,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "Systems that scale.",
+          "rect": {
+            "t": 269,
+            "h": 144
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "THE PROBLEM MOST BUSINESSES ARE STILL DOING IT MANUALLY. Eve",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "H2",
+          "id": null,
+          "text": "MOST BUSINESSES ARE STILL DOING IT MANUALLY.",
+          "rect": {
+            "t": 368,
+            "h": 135
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "MAIN",
+          "id": null,
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": -23400,
+            "h": 26369
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "DIV",
+          "id": "cave-canvas-container",
+          "text": "↑ DHANANJAY CHITMILLA SYNAPSIS INDUSTRIES Systems that scale",
+          "rect": {
+            "t": 0,
+            "h": 900
+          },
+          "opacity": 1,
+          "pointerEvents": "none"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "VOICES WhattheIndustrySays. \"Kontentwala doesn't just make",
+          "rect": {
+            "t": -363,
+            "h": 811
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        },
+        {
+          "tag": "SECTION",
+          "id": null,
+          "text": "SELECTEDPARTNERS Coty 2023 Suit Supply 2024 Nike 2022 Adidas",
+          "rect": {
+            "t": 449,
+            "h": 720
+          },
+          "opacity": 1,
+          "pointerEvents": "auto"
+        }
+      ],
+      "screenshot": "C:\\DHANANJAY\\claude code\\claude app\\portfolio D\\VARK PORTFOLIO\\diagnostics\\2026-04-26T13-04-51-032Z_scroll_11_case_studies.png"
+    }
+  ],
+  "consoleAllByType": {
+    "info": 1,
+    "error": 1,
+    "warning": 3,
+    "debug": 8
+  },
+  "errors": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "warning",
+      "text": "Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly."
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (928,7-59): warning X3557: loop only executes for 1 iteration(s), consider removing [loop]\n\n\n\u0000"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (932,7-59): warning X3557: loop only executes for 1 iteration(s), consider removing [loop]\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": []
+}

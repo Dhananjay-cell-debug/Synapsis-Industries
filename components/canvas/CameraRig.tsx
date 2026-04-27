@@ -44,9 +44,9 @@ function getWalkCycle(t: number, steps: number, bobAmp: number, swayAmp: number)
     const y = Math.pow(Math.sin(phase), 2) * bobAmp;
     // Sway is half the frequency of steps
     const x = Math.cos(phase / 2) * swayAmp;
-    // Subtle head roll (tilt) aligned with weight shift
-    const roll = Math.cos(phase / 2) * (swayAmp * 0.45);
-    // Slight look-down on foot impact 
+    // Head roll DRASTICALLY reduced — was 0.45, caused visible tilt on real GPUs
+    const roll = Math.cos(phase / 2) * (swayAmp * 0.12);
+    // Slight look-down on foot impact
     const pitch = -Math.abs(Math.sin(phase)) * (bobAmp * 0.6);
     return { x, y, roll, pitch };
 }
@@ -72,6 +72,16 @@ export default function CameraRig() {
 
     useFrame((state, delta) => {
         const progress = scrollProgress.current;
+
+        if (progress <= 0.001) {
+            state.camera.position.set(0, -1, 10);
+            targetLookAt.current.set(0, 0, -15);
+            currentLookAt.current.copy(targetLookAt.current);
+            currentRoll.current = 0;
+            state.camera.up.set(0, 1, 0);
+            state.camera.lookAt(currentLookAt.current);
+            return;
+        }
 
         // ── Broadcast debug info for the overlay panel ──
         if (typeof window !== 'undefined') {

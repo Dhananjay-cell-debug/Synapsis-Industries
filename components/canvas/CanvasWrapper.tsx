@@ -28,10 +28,12 @@ export default function CanvasWrapper({
     return (
         <WebGLErrorBoundary>
             <Canvas
-                shadows
+                shadows={false}
+                dpr={1}
+                performance={{ min: 0.4 }}
                 className="w-full h-full"
                 camera={{ position: [0, 0, 10], fov: 35 }}
-                gl={{ toneMapping: THREE.NoToneMapping, antialias: true, powerPreference: "default", failIfMajorPerformanceCaveat: false }}
+                gl={{ toneMapping: THREE.NoToneMapping, antialias: false, powerPreference: "high-performance", failIfMajorPerformanceCaveat: false, alpha: false, stencil: false, depth: true }}
             >
                 <ambientLight intensity={1} />
                 <Suspense fallback={null}>

@@ -44,10 +44,6 @@ export default function Scene({ groundColor = "#11B8EA", bgColor = "#0A0F1E" }: 
             <directionalLight
                 position={[6, 8, 8]}
                 intensity={0.7}
-                castShadow
-                shadow-bias={-0.0001}
-                shadow-normalBias={0.04}
-                shadow-mapSize={[2048, 2048]}
                 color="#E0EEFF"
             />
 
@@ -64,7 +60,7 @@ export default function Scene({ groundColor = "#11B8EA", bgColor = "#0A0F1E" }: 
             <hemisphereLight args={["#C8D8F0", "#0A0F1E", 0.35]} />
 
             {/* Ground Floor */}
-            <mesh position={[0, -2.5, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh position={[0, -2.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                 <planeGeometry args={[500, 500]} />
                 <meshStandardMaterial color={groundColor} roughness={0.85} />
             </mesh>
