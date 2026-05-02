@@ -189,18 +189,19 @@ export default function CameraRig() {
         const parallaxX = 0;
         const parallaxY = 0;
 
-        // Smoothly lerp camera position
+        // Frame-rate-independent exponential damping — overshoot impossible even on 1fps stutter.
+        const dt = Math.min(delta, 0.1);
+        const damp = (rate: number) => 1 - Math.exp(-rate * dt);
+
         state.camera.position.lerp(
             new THREE.Vector3(targetX + parallaxX, targetY + parallaxY, targetZ),
-            delta * 3
+            damp(3)
         );
 
-        // Smoothly lerp look target
         targetLookAt.current.set(lookX, lookY, lookZ);
-        currentLookAt.current.lerp(targetLookAt.current, delta * 4);
+        currentLookAt.current.lerp(targetLookAt.current, damp(4));
 
-        // Apply dynamic head roll (tilt) for realism by shifting the camera 'UP' vector
-        currentRoll.current = THREE.MathUtils.lerp(currentRoll.current, targetRoll, delta * 6);
+        currentRoll.current = THREE.MathUtils.lerp(currentRoll.current, targetRoll, damp(6));
         state.camera.up.set(Math.sin(currentRoll.current), Math.cos(currentRoll.current), 0);
         state.camera.up.normalize();
 

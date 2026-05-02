@@ -83,14 +83,14 @@ export default function Overlay() {
                 </div>
             </div>
 
-            {/* Right Aligned Title — with letter reveal + scroll fade */}
+            {/* Nameplate Title — centered above the doorway like a building sign */}
             <div
                 className="text-center text-white whitespace-nowrap"
                 style={{
                     position: "absolute",
-                    top: "47.5%",
-                    left: "68%",
-                    transform: "translate(-50%, -50%)",
+                    top: "18%",
+                    left: "50%",
+                    transform: "translate(-50%, 0)",
                 }}
             >
                 <LetterReveal

@@ -45,18 +45,28 @@ function CavePeelController() {
     useEffect(() => {
         const STAGGER = 0.12, STRIP_RANGE = 0.40, REVEAL_ZONE = 0.75;
         const easeOut = (t: number) => 1 - Math.pow(1 - t, 2.5);
-        const onScroll = () => {
+        let lastUrlKey = '', rafId = 0, pending = false;
+        const compute = () => {
+            pending = false;
             const scrollY = window.scrollY, vh = window.innerHeight;
             const cave = document.getElementById('cave-canvas-container') as HTMLElement | null;
             if (!cave) return;
             const winStart = vh * 5, winEnd = vh * 6, totalP = (scrollY - winStart) / (winEnd - winStart);
             if (totalP < 0 || totalP > 1) {
                 cave.style.zIndex = '0'; cave.style.maskImage = 'none'; cave.style.webkitMaskImage = 'none';
-                // After peel completes (totalP > 1), cave is invisible — don't let it eat clicks
-                cave.style.pointerEvents = totalP < 0 ? 'auto' : 'none'; return;
+                cave.style.pointerEvents = totalP < 0 ? 'auto' : 'none';
+                // Hide cave entirely once journey ends — kills bleed-through into deep sections + saves GPU.
+                cave.style.visibility = totalP > 1 ? 'hidden' : 'visible';
+                lastUrlKey = '';
+                return;
             }
+            cave.style.visibility = 'visible';
             cave.style.zIndex = '9'; cave.style.maskSize = '100% 100%'; cave.style.maskRepeat = 'no-repeat'; cave.style.pointerEvents = 'none';
             const revealP = Math.max(0, Math.min(1, totalP / REVEAL_ZONE));
+            // Cache key — round to 3 decimals; same key = no recompute (saves encodeURIComponent on long strings).
+            const key = revealP.toFixed(3);
+            if (key === lastUrlKey) return;
+            lastUrlKey = key;
             const rects = REVEAL_STRIPS.map(({ w, l }, i) => {
                 const raw = Math.max(0, Math.min(1, (revealP - i * STAGGER) / STRIP_RANGE));
                 const peeledPct = easeOut(raw) * 100, remainPct = Math.max(0, 100 - peeledPct);
@@ -65,8 +75,14 @@ function CavePeelController() {
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">${rects}</svg>`, url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
             cave.style.maskImage = url; cave.style.webkitMaskImage = url;
         };
+        const onScroll = () => {
+            if (pending) return;
+            pending = true;
+            rafId = requestAnimationFrame(compute);
+        };
         window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
+        compute();
+        return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafId); };
     }, []);
     return null;
 }
@@ -91,18 +107,18 @@ function TickerSection() {
                     <p className="text-[11px] tracking-[0.5em] uppercase text-white/40 font-outfit mb-4">Synapsis Industries</p>
                     <h2 className="font-serif text-white text-5xl md:text-7xl leading-[1.0] mb-6">Systems that<br /><em>scale.</em></h2>
                     <p className="text-white/50 text-base max-w-sm mx-auto mb-8">Built for founders, agencies, and brands who want results — not just deliverables.</p>
-                    <div className="flex items-center justify-center gap-4">
-                        <a
-                            href="/auth/signin"
-                            className="px-6 py-3 text-xs font-semibold tracking-[0.18em] uppercase border border-white/20 text-white/70 hover:text-white hover:border-white/50 transition-all duration-300"
-                            style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.04)", pointerEvents: 'auto' }}
+                    <div className="flex items-center justify-center gap-4" style={{ zIndex: 100, position: 'relative' }}>
+                        <button
+                            onClick={() => window.location.href = "/auth/signin"}
+                            className="px-6 py-3 text-xs font-semibold tracking-[0.18em] uppercase border border-white/20 text-white/70 hover:text-white hover:border-white/50 transition-all duration-300 cursor-pointer"
+                            style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.04)" }}
                         >
                             Login
-                        </a>
+                        </button>
                         <button
                             onClick={() => window.scrollBy({ top: window.innerHeight * 2, behavior: "smooth" })}
-                            className="px-7 py-3 text-xs font-semibold tracking-[0.18em] uppercase text-[#0A0F1E] hover:opacity-90 transition-opacity duration-300"
-                            style={{ background: "#11B8EA", pointerEvents: 'auto' }}
+                            className="px-7 py-3 text-xs font-semibold tracking-[0.18em] uppercase text-[#0A0F1E] hover:opacity-90 transition-opacity duration-300 cursor-pointer"
+                            style={{ background: "#11B8EA" }}
                         >
                             Explore More ↓
                         </button>
@@ -122,20 +138,27 @@ function S2PeelController() {
     useEffect(() => {
         const STAGGER = 0.12, STRIP_RANGE = 0.40, REVEAL_ZONE = 0.75;
         const easeOut = (t: number) => 1 - Math.pow(1 - t, 2.5);
-        const onScroll = () => {
+        let lastUrlKey = '', rafId = 0, pending = false;
+        const compute = () => {
+            pending = false;
             const scrollY = window.scrollY, vh = window.innerHeight;
             const s2 = document.getElementById('ticker-section-container') as HTMLElement | null;
             if (!s2) return;
             const pStart = vh * 6, pEnd = vh * 6.75, totalP = (scrollY - pStart) / (pEnd - pStart);
-            if (totalP < 0 || totalP > 1) { s2.style.zIndex = '8'; s2.style.maskImage = 'none'; s2.style.webkitMaskImage = 'none'; return; }
+            if (totalP < 0 || totalP > 1) { s2.style.zIndex = '8'; s2.style.maskImage = 'none'; s2.style.webkitMaskImage = 'none'; lastUrlKey = ''; return; }
             s2.style.opacity = '1'; s2.style.zIndex = '11'; s2.style.maskSize = '100% 100%'; s2.style.maskRepeat = 'no-repeat';
             const revealP = Math.max(0, Math.min(1, totalP / REVEAL_ZONE));
+            const key = revealP.toFixed(3);
+            if (key === lastUrlKey) return;
+            lastUrlKey = key;
             const rects = REVEAL_STRIPS.map(({ w, l }, i) => { const raw = Math.max(0, Math.min(1, (revealP - i * STAGGER) / STRIP_RANGE)); const peeledPct = easeOut(raw) * 100; return `<rect x="${l}%" y="${peeledPct}%" width="${w + 0.5}%" height="${100 - peeledPct}%" fill="white"/>`; }).join('');
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">${rects}</svg>`, url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
             s2.style.maskImage = url; s2.style.webkitMaskImage = url;
         };
+        const onScroll = () => { if (pending) return; pending = true; rafId = requestAnimationFrame(compute); };
         window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
+        compute();
+        return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafId); };
     }, []);
     return null;
 }

@@ -1,7 +1,9 @@
 "use client";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 function FloatingLines({ position }: { position: number }) {
     const paths = Array.from({ length: 28 }, (_, i) => ({
@@ -32,6 +34,36 @@ function FloatingLines({ position }: { position: number }) {
 }
 
 export default function SignInPage() {
+    const { data: session, status } = useSession();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (status === "authenticated" && session?.user) {
+            router.push("/dashboard");
+        }
+    }, [status, session, router]);
+
+    if (status === "loading") {
+        return (
+            <div className="h-screen w-full flex items-center justify-center bg-[#0A0F1E]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 rounded-full border-2 border-[#11B8EA] border-t-transparent animate-spin" />
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-white/30">Verifying...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === "authenticated") {
+        return (
+            <div className="h-screen w-full flex items-center justify-center bg-[#0A0F1E]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-emerald-400/60">Redirecting to Dashboard...</p>
+                </div>
+            </div>
+        );
+    }
     return (
         <div className="h-screen w-full flex flex-col bg-[#0A0F1E] relative overflow-hidden font-outfit text-white">
 
@@ -58,7 +90,7 @@ export default function SignInPage() {
                 <Link href="/" className="text-xl font-serif tracking-tight font-bold text-white">
                     SYNAPSIS INDUSTRIES
                 </Link>
-                <Link href="/" className="px-5 py-2.5 text-xs font-semibold tracking-[0.16em] uppercase border border-white/15 text-white/50 hover:text-white hover:border-white/40 transition-all duration-300">
+                <Link href="/" className="px-5 py-2.5 text-xs font-semibold tracking-[0.16em] uppercase border border-white/15 text-white/50 hover:text-white hover:border-white/40 transition-all duration-300 cursor-pointer">
                     ← Back to Home
                 </Link>
             </header>
@@ -90,7 +122,7 @@ export default function SignInPage() {
                             {/* Google button */}
                             <button
                                 onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                                className="w-full flex items-center justify-center gap-3 bg-white text-[#0A0F1E] px-6 py-3.5 rounded-xl text-[14px] font-semibold hover:bg-white/90 active:scale-[0.98] transition-all"
+                                className="w-full flex items-center justify-center gap-3 bg-white text-[#0A0F1E] px-6 py-3.5 rounded-xl text-[14px] font-semibold hover:bg-white/90 active:scale-[0.98] transition-all cursor-pointer"
                             >
                                 <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
                                     <path d="M43.611 20.083H42V20H24v8h11.303C33.654 32.657 29.332 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" fill="#FFC107" />
@@ -113,7 +145,7 @@ export default function SignInPage() {
                                 className="w-full bg-white/5 border border-white/10 px-5 py-3.5 rounded-xl text-[14px] text-white outline-none focus:border-[#11B8EA]/50 transition-colors mb-4 placeholder:text-white/25"
                             />
 
-                            <button className="w-full px-6 py-3.5 rounded-xl text-[14px] font-semibold text-[#0A0F1E] hover:opacity-90 active:scale-[0.98] transition-all" style={{ background: "#11B8EA" }}>
+                            <button className="w-full px-6 py-3.5 rounded-xl text-[14px] font-semibold text-[#0A0F1E] hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer" style={{ background: "#11B8EA" }}>
                                 Continue with email
                             </button>
 
