@@ -3052,6 +3052,49 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                             </div>
                         )}
 
+                        {/* ── FORCE ADVANCE TO PHASE 2 (admin override, no preconditions) ── */}
+                        <button
+                            onClick={async () => {
+                                if (activeAction !== "forceP2") { setActiveAction("forceP2"); return; }
+                                const res = await fetch(`/api/deals/${deal.token}/phase/${deal.phase}`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        action: "forcePhaseJump",
+                                        ctx: { adminEmail, toPhase: 2, note: "Admin override — direct advance to Phase 2 (Blueprint)" },
+                                    }),
+                                });
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    setDeal(d => ({ ...d, ...data.deal }));
+                                    setActiveAction(null);
+                                } else {
+                                    const err = await res.json().catch(() => ({}));
+                                    alert(`Force advance failed: ${err.error || res.statusText}`);
+                                    setActiveAction(null);
+                                }
+                            }}
+                            className="w-full px-5 py-4 rounded-xl border transition-all text-left"
+                            style={{
+                                borderColor: activeAction === "forceP2" ? "rgba(251,191,36,0.5)" : "rgba(251,191,36,0.2)",
+                                background: activeAction === "forceP2" ? "rgba(251,191,36,0.08)" : "rgba(251,191,36,0.03)",
+                            }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)" }}>
+                                    <Zap size={13} style={{ color: "#fbbf24" }} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold" style={{ color: "#fbbf24" }}>
+                                        {activeAction === "forceP2" ? "Confirm — advance now?" : "Elect → Phase 2"}
+                                    </p>
+                                    <p className="text-[10px] text-white/25">
+                                        {activeAction === "forceP2" ? "Click again to confirm override" : "Force advance regardless of preconditions"}
+                                    </p>
+                                </div>
+                            </div>
+                        </button>
+
                         {/* 5. NO-GO */}
                         <button onClick={() => setActiveAction(activeAction === "nogo" ? null : "nogo")}
                             className="w-full px-5 py-4 rounded-xl border transition-all text-left"
