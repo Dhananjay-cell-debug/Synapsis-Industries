@@ -965,7 +965,7 @@ const SECTIONS = [
     { id: "assets", label: "SECTION C", qIndices: [8] },
 ];
 
-function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: Record<string, string>) => Promise<void> }) {
+function QuestionnaireTab({ deal, onSubmit, onEnterWorkspace }: { deal: Deal; onSubmit: (answers: Record<string, string>) => Promise<void>; onEnterWorkspace: (updated: Deal) => void }) {
     const QUES = (deal.customQuestions?.length === 9) ? deal.customQuestions : QUESTIONS;
 
 
@@ -982,6 +982,7 @@ function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: 
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(!!deal.questionnaire);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [enteringWorkspace, setEnteringWorkspace] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const activeSection = SECTIONS.findIndex(s => s.qIndices.includes(current));
@@ -1048,8 +1049,30 @@ function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: 
                             </div>
                             <span className="text-[10px] tracking-[0.5em] uppercase text-black/40 font-black">Phase 01 · Complete</span>
                         </div>
-                        <h1 className="font-serif text-6xl text-[#0A0F1E] leading-tight mb-4">Strategic data locked.</h1>
-                        <p className="text-xl text-black/50 leading-relaxed max-w-md">We&apos;re processing your requirements to generate your system blueprint. Check back in 12h.</p>
+                                        <h1 className="font-serif text-6xl text-[#0A0F1E] leading-tight mb-4">Strategic data locked.</h1>
+                        <p className="text-xl text-black/50 leading-relaxed max-w-md mb-8">Your requirements are captured. Time to enter the workspace.</p>
+                        {deal.phase <= 1 && (
+                            <motion.button
+                                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                                onClick={async () => {
+                                    setEnteringWorkspace(true);
+                                    try {
+                                        const res = await fetch(`/api/deals/${deal.token}/enter-workspace`, { method: "POST" });
+                                        if (res.ok) {
+                                            const updated = await res.json();
+                                            onEnterWorkspace(updated);
+                                        }
+                                    } catch { /* silent — user can retry */ } finally {
+                                        setEnteringWorkspace(false);
+                                    }
+                                }}
+                                disabled={enteringWorkspace}
+                                className="flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-black text-sm uppercase tracking-[0.3em] disabled:opacity-50 transition-all shadow-[0_16px_40px_rgba(17,184,234,0.35)]"
+                                style={{ background: "linear-gradient(135deg, #11B8EA, #3B6AE8)" }}
+                            >
+                                {enteringWorkspace ? "Opening…" : "Enter Workspace →"}
+                            </motion.button>
+                        )}
                     </div>
                 </motion.div>
                 <div className="flex flex-col gap-4 mt-2">
@@ -1675,7 +1698,7 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                         >
                             {activeTab === "overview" && <OverviewTab deal={deal} onQuestionnaireClick={() => setActiveTab("questionnaire")} onProcessClick={() => setActiveTab("process")} onUnlock={handleUnlock} unlocked={false} />}
                             {activeTab === "process" && <ProcessTab deal={deal} onQuestionnaireUnlock={handleQuestionnaireUnlock} />}
-                            {activeTab === "questionnaire" && <QuestionnaireTab deal={deal} onSubmit={handleQuestionnaireSubmit} />}
+                            {activeTab === "questionnaire" && <QuestionnaireTab deal={deal} onSubmit={handleQuestionnaireSubmit} onEnterWorkspace={(updated) => { onStatusUpdate(updated); }} />}
                             {activeTab === "chat" && <ChatTab deal={deal} onSend={handleSendMessage} />}
                             {activeTab === "blueprint" && (
                                 <BlueprintViewer
