@@ -124,12 +124,16 @@ interface Deal {
     company: string;
     budget: string;
     need: string;
-    status: "pending" | "elected" | "rejected" | "expired" | "proceeding" | "active";
+    status: "pending" | "interested" | "elected" | "rejected" | "expired" | "proceeding" | "active";
     phase?: number;
     expiryTime?: string;
     messages?: Message[];
     questionnaire?: Record<string, string>;
     totalPrice?: number;
+    currency?: "INR" | "USD";
+    paymentProvider?: "razorpay" | "stripe";
+    acceptInternationalCards?: boolean;
+    clientCountry?: string;
     payments?: DealPayment[];
     projectDays?: number;
     customQuestions?: string[];
@@ -442,6 +446,9 @@ function OverviewTab({ deal, onQuestionnaireClick, onProcessClick, onUnlock, unl
                         paymentPhase={deal.phase as 3 | 4 | 6}
                         totalPrice={deal.totalPrice}
                         payments={deal.payments}
+                        clientName={deal.name}
+                        paymentProvider={deal.paymentProvider}
+                        currency={deal.currency}
                         label={
                             deal.phase === 3 ? "Advance payment to initiate the build" :
                             deal.phase === 4 ? "Milestone payment — mid-project checkpoint" :
@@ -1923,6 +1930,13 @@ export default function ClientPortal() {
         fetchDeal();
     }, [fetchDeal]);
 
+    // Poll every 15s while pending/interested — auto-shows Phase 1 once admin elects
+    useEffect(() => {
+        if (!deal || (deal.status !== "pending" && deal.status !== "interested")) return;
+        const iv = setInterval(fetchDeal, 15000);
+        return () => clearInterval(iv);
+    }, [deal?.status, fetchDeal]);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#0A0F1E] flex flex-col items-center justify-center gap-6">
@@ -1966,6 +1980,21 @@ export default function ClientPortal() {
     }
 
     // Workflow Routing
+    if (deal.status === "pending" || deal.status === "interested") {
+        return (
+            <div className="min-h-screen bg-[#0A0F1E] flex flex-col items-center justify-center p-8">
+                <div className="w-20 h-20 rounded-[2.5rem] bg-[#11B8EA]/10 border border-[#11B8EA]/20 flex items-center justify-center text-[#11B8EA] mb-10 relative">
+                    <Clock size={40} />
+                    <div className="absolute inset-0 rounded-[2.5rem] bg-[#11B8EA]/10 animate-ping" style={{ animationDuration: "3s" }} />
+                </div>
+                <h1 className="font-serif text-4xl text-white mb-4">Request Under Review.</h1>
+                <p className="text-white/40 text-center max-w-sm mb-4 text-sm leading-relaxed">
+                    Your project request is being evaluated. You'll be automatically moved to Phase 1 once selected.
+                </p>
+                <p className="text-[#11B8EA]/50 text-[10px] tracking-widest uppercase animate-pulse">Monitoring for updates...</p>
+            </div>
+        );
+    }
     if (deal.status === "elected" || deal.status === "proceeding" || deal.status === "active") {
         return <ClientPhase1Workspace deal={deal} onStatusUpdate={setDeal} />;
     }

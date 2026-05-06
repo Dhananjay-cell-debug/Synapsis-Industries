@@ -1,6 +1,7 @@
 "use client";
 
 import { useProblemStore } from "@/store/useProblemStore";
+import { useOverlayStore } from "@/store/useOverlayStore";
 import { useState, useEffect } from "react";
 
 function Slider({ label, value, min, max, step, onChange, color = "#a3d8ff" }: {
@@ -24,6 +25,7 @@ function Slider({ label, value, min, max, step, onChange, color = "#a3d8ff" }: {
 
 export default function Section3Calibrator() {
     const config = useProblemStore();
+    const overlay = useOverlayStore();
     const [isOpen, setIsOpen] = useState(false);
     const [currentScroll, setCurrentScroll] = useState(0);
 
@@ -62,10 +64,14 @@ SCROLL: {
     START_VH: ${config.startVh},
     DURATION_VH: ${config.durationVh},
     TIMELINE_OFFSET_VH: ${config.timelineOffsetVh},
+},
+OVERLAY: {
+    TOP: ${overlay.top.toFixed(1)},
+    LEFT: ${overlay.left.toFixed(1)},
 }
         `;
         navigator.clipboard.writeText(code);
-        alert("Config copied! Paste this in config/problem-animation.ts later.");
+        alert("Config copied! Paste this back to me so I can lock it in.");
     };
 
     return (
@@ -100,6 +106,12 @@ SCROLL: {
                     <Slider label="Start VH" value={config.startVh} min={100} max={1200} step={10} onChange={(v) => config.setConfig({ startVh: v })} color="#ffb7c5" />
                     <Slider label="Duration VH" value={config.durationVh} min={100} max={1000} step={10} onChange={(v) => config.setConfig({ durationVh: v })} color="#ffb7c5" />
                     <Slider label="Timeline Offset" value={config.timelineOffsetVh} min={0} max={1000} step={10} onChange={(v) => config.setConfig({ timelineOffsetVh: v })} color="#ffb7c5" />
+                </div>
+
+                <div className="pt-4 border-t border-white/5">
+                    <p className="text-[10px] font-bold opacity-30 mb-3 tracking-[0.2em] uppercase">Text Overlay</p>
+                    <Slider label="Top %" value={overlay.top} min={0} max={100} step={0.1} onChange={(v) => overlay.setTop(v)} color="#fff" />
+                    <Slider label="Left %" value={overlay.left} min={0} max={100} step={0.1} onChange={(v) => overlay.setLeft(v)} color="#fff" />
                 </div>
             </div>
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useOverlayStore } from "@/store/useOverlayStore";
 
 function LetterReveal({ text, className, style, delay = 0 }: {
     text: string, className?: string, style?: React.CSSProperties, delay?: number
@@ -88,8 +89,8 @@ export default function Overlay() {
                 className="text-center text-white whitespace-nowrap"
                 style={{
                     position: "absolute",
-                    top: "18%",
-                    left: "50%",
+                    top: `${useOverlayStore(state => state.top)}%`,
+                    left: `${useOverlayStore(state => state.left)}%`,
                     transform: "translate(-50%, 0)",
                 }}
             >

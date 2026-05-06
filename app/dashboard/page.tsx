@@ -1022,7 +1022,7 @@ interface Submission {
     status: string;
 }
 
-function StartProjectView({ onSubmit }: { onSubmit: (s: Submission) => void }) {
+function StartProjectView({ onSubmit, clientEmail = "" }: { onSubmit: (s: Submission) => void; clientEmail?: string }) {
     const [done, setDone] = useState(false);
     const [portalToken, setPortalToken] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -1030,6 +1030,23 @@ function StartProjectView({ onSubmit }: { onSubmit: (s: Submission) => void }) {
     const [hasWhatsapp, setHasWhatsapp] = useState<null | boolean>(null);
     const [contact, setContact] = useState({ whatsapp: "", gmail: "", instagram: "", linkedin: "" });
     const u = (k: string) => (v: string) => setForm(f => ({ ...f, [k]: v }));
+
+    // Poll every 10s after submission — auto-redirect when admin elects
+    useEffect(() => {
+        if (!done || !portalToken) return;
+        const iv = setInterval(async () => {
+            try {
+                const r = await fetch(`/api/deals?token=${portalToken}`);
+                if (!r.ok) return;
+                const d = await r.json();
+                if (d?.status === "elected") {
+                    clearInterval(iv);
+                    window.location.href = `/client/${portalToken}`;
+                }
+            } catch {}
+        }, 10000);
+        return () => clearInterval(iv);
+    }, [done, portalToken]);
 
     const inputCls = "w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl text-sm text-white outline-none focus:border-[#11B8EA]/50 transition-colors placeholder:text-white/20";
     const labelCls = "text-[10px] tracking-[0.3em] uppercase text-white/30 block mb-1.5";
@@ -1111,7 +1128,7 @@ function StartProjectView({ onSubmit }: { onSubmit: (s: Submission) => void }) {
                             const res = await fetch("/api/deals", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ submissionId: submission.id, name: submission.name, company: submission.company, need: submission.need, budget: submission.budget, message: submission.message }),
+                                body: JSON.stringify({ submissionId: submission.id, name: submission.name, company: submission.company, need: submission.need, budget: submission.budget, message: submission.message, clientEmail }),
                             });
                             const data = await res.json();
                             if (data.token) {
@@ -3500,7 +3517,7 @@ export default function Dashboard() {
                         {safeView === "home" && <motion.div key="h" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><HomeView onStartProject={() => setView("start")} onExploreWork={() => setView("work")} /></motion.div>}
                         {safeView === "work" && <motion.div key="w" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><WorkView projects={projects} /></motion.div>}
                         {safeView === "services" && <motion.div key="s" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><ServicesView onStartProject={() => setView("start")} /></motion.div>}
-                        {safeView === "start" && <motion.div key="p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><StartProjectView onSubmit={addSubmission} /></motion.div>}
+                        {safeView === "start" && <motion.div key="p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><StartProjectView onSubmit={addSubmission} clientEmail={session?.user?.email ?? ""} /></motion.div>}
                         {safeView === "command" && <motion.div key="c" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><CommandView deals={deals as any} onJump={(v, token) => { setView(v); if (v === "workspace" && token) openWorkspace(token); }} /></motion.div>}
                         {safeView === "pipeline" && <motion.div key="pl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><PipelineView deals={deals as any} onOpen={openWorkspace} /></motion.div>}
                         {safeView === "inbox" && <motion.div key="i" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><InboxView submissions={submissions} onDelete={deleteSubmission} deals={deals} onElect={electDeal} onReject={rejectDeal} onOpenWorkspace={openWorkspace} onUpdateDeal={(token, updates) => setDeals(prev => prev.map(d => d.token === token ? { ...d, ...updates } : d))} onInterested={markInterested} /></motion.div>}

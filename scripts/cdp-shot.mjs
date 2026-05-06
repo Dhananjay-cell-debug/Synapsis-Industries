@@ -1,0 +1,15 @@
+import fs from "node:fs/promises";
+const list = await (await fetch("http://127.0.0.1:9222/json/list")).json();
+const page = list.find(t => t.type === "page" && t.url.includes("3001"));
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+await new Promise(r => ws.onopen = r);
+let nid = 1; const p = new Map();
+ws.onmessage = (e) => { const m = JSON.parse(e.data); if (p.has(m.id)) { p.get(m.id)(m.result); p.delete(m.id); } };
+const send = (m, x={}) => new Promise(r => { const id=nid++; p.set(id,r); ws.send(JSON.stringify({id,method:m,params:x})); });
+await send("Emulation.setFocusEmulationEnabled", {enabled:true});
+await send("Page.bringToFront");
+await new Promise(r=>setTimeout(r,2000));
+const r = await send("Page.captureScreenshot", {format:"png"});
+await fs.writeFile("C:/Users/Dhananjay/AppData/Local/Temp/synapsis-diag/AFTER-hero.png", Buffer.from(r.data, "base64"));
+console.log("ok");
+ws.close();

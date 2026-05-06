@@ -1,0 +1,406 @@
+// ─── INVOICE PDF GENERATION ────────────────────────────────────────────────
+// Branded Synapsis invoice PDF using pdf-lib (pure JS, no native deps).
+// Idempotent: if an invoice already exists for the (deal, payment), returns it.
+//
+// Compliance:
+// • Sequential invoice numbers via DB function (synapsis.next_invoice_number)
+// • PAN last-4, Udyam registration shown — sole proprietor format
+// • GSTIN: "Not Applicable" until threshold crossed
+// • TDS receivable line: visible if client deducted (manual entry)
+// • System-generated; no signature required (footer disclaimer)
+
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+    createInvoice,
+    generateInvoiceNumber,
+    getInvoiceForPayment,
+    getInvoiceByNumber,
+} from "@/lib/payments/db";
+import { supabase } from "@/lib/supabase";
+import { SYNAPSIS_CONFIG, formatBankInstructions } from "@/lib/synapsis-config";
+import { PHASE_NAMES, PAYMENT_SPLIT } from "@/lib/phases/constants";
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+const formatINR = (paise: number): string => {
+    const rupees = paise / 100;
+    return `INR ${rupees.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatUSD = (cents: number): string => {
+    const dollars = cents / 100;
+    return `USD ${dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatMoney = (minor: number, currency: "INR" | "USD"): string =>
+    currency === "USD" ? formatUSD(minor) : formatINR(minor);
+
+// Convert hex "#11B8EA" → rgb(0..1)
+const hexToRgb = (hex: string) => {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.slice(0, 2), 16) / 255;
+    const g = parseInt(h.slice(2, 4), 16) / 255;
+    const b = parseInt(h.slice(4, 6), 16) / 255;
+    return rgb(r, g, b);
+};
+
+// Number → words helper (Indian style, supports up to crores)
+function numberToIndianWords(num: number): string {
+    if (num === 0) return "Zero";
+    const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+        "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+    const twoDigits = (n: number): string => {
+        if (n < 20) return ones[n];
+        return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
+    };
+    const threeDigits = (n: number): string => {
+        const h = Math.floor(n / 100);
+        const r = n % 100;
+        return (h ? ones[h] + " Hundred" + (r ? " " : "") : "") + (r ? twoDigits(r) : "");
+    };
+
+    let result = "";
+    const crore = Math.floor(num / 10000000);
+    const lakh = Math.floor((num % 10000000) / 100000);
+    const thousand = Math.floor((num % 100000) / 1000);
+    const remainder = num % 1000;
+
+    if (crore) result += twoDigits(crore) + " Crore ";
+    if (lakh) result += twoDigits(lakh) + " Lakh ";
+    if (thousand) result += twoDigits(thousand) + " Thousand ";
+    if (remainder) result += threeDigits(remainder);
+
+    return result.trim();
+}
+
+// ─── Drawing primitives ────────────────────────────────────────────────────
+
+interface DrawCtx {
+    page: PDFPage;
+    fonts: { regular: PDFFont; bold: PDFFont; italic: PDFFont };
+    colors: { primary: ReturnType<typeof rgb>; accent: ReturnType<typeof rgb>; muted: ReturnType<typeof rgb>; text: ReturnType<typeof rgb> };
+}
+
+function drawText(ctx: DrawCtx, text: string, x: number, y: number, opts: {
+    size?: number; bold?: boolean; italic?: boolean; color?: ReturnType<typeof rgb>;
+} = {}) {
+    const font = opts.bold ? ctx.fonts.bold : opts.italic ? ctx.fonts.italic : ctx.fonts.regular;
+    ctx.page.drawText(text, {
+        x, y, size: opts.size || 10, font,
+        color: opts.color || ctx.colors.text,
+    });
+}
+
+function drawLine(page: PDFPage, x1: number, y1: number, x2: number, y2: number, color: ReturnType<typeof rgb>, thickness = 0.5) {
+    page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, color, thickness });
+}
+
+function drawRect(page: PDFPage, x: number, y: number, w: number, h: number, color: ReturnType<typeof rgb>) {
+    page.drawRectangle({ x, y, width: w, height: h, color });
+}
+
+// ─── Public — generate or fetch existing ───────────────────────────────────
+
+export interface GenerateInvoiceArgs {
+    dealToken: string;
+    paymentId: string;
+}
+
+/**
+ * Idempotent invoice generation: if invoice already exists for this payment,
+ * returns it. Otherwise generates a new invoice number, builds PDF, persists
+ * to synapsis.invoices (with PDF blob inline), returns the row.
+ */
+export async function generateAndPersistInvoice(args: GenerateInvoiceArgs) {
+    // Existing?
+    const existing = await getInvoiceForPayment(args.paymentId);
+    if (existing) return existing;
+
+    // Load payment
+    const { data: payment, error: pErr } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("id", args.paymentId)
+        .single();
+    if (pErr || !payment) throw new Error(`Payment not found for invoice generation: ${pErr?.message}`);
+
+    // Load deal from JSON (via re-import to avoid circular)
+    const { getDeal } = await import("@/lib/deals/store");
+    const deal = await getDeal(args.dealToken);
+    if (!deal) throw new Error(`Deal not found for invoice generation: ${args.dealToken}`);
+
+    // Generate sequential number
+    const invoiceNumber = await generateInvoiceNumber();
+
+    const currency: "INR" | "USD" = (payment.currency === "USD" ? "USD" : "INR");
+    const provider: string = payment.provider || "razorpay";
+
+    // Render PDF
+    const pdfBuffer = await renderInvoicePdf({
+        invoiceNumber,
+        currency,
+        deal: {
+            token: deal.token,
+            name: deal.name,
+            company: deal.company,
+            need: deal.need,
+        },
+        payment: {
+            phase: payment.phase as 3 | 4 | 6,
+            amountMinor: payment.amount_minor || payment.amount_paise,
+            tdsReceivedPaise: payment.tds_received_paise || 0,
+            method: payment.method || provider,
+            provider,
+            razorpayPaymentId: payment.razorpay_payment_id,
+            stripePaymentIntentId: payment.stripe_payment_intent_id,
+            paidAt: payment.paid_at,
+        },
+    });
+
+    // Persist
+    const row = await createInvoice({
+        invoiceNumber,
+        dealToken: args.dealToken,
+        paymentId: args.paymentId,
+        phase: payment.phase,
+        amountPaise: payment.amount_paise,
+        issuedToName: deal.name,
+        issuedToCompany: deal.company,
+        issuedToEmail: undefined,                  // V2: collect from questionnaire/onboarding
+        pdfBlob: pdfBuffer,
+        generatedBy: "system",
+        metadata: { totalPriceMajor: deal.totalPrice, percentage: payment.percentage, currency, provider },
+    });
+
+    return row;
+}
+
+// ─── PDF Renderer ──────────────────────────────────────────────────────────
+
+interface RenderArgs {
+    invoiceNumber: string;
+    currency?: "INR" | "USD";
+    deal: { token: string; name: string; company: string; need: string };
+    payment: {
+        phase: 3 | 4 | 6;
+        amountMinor?: number;                      // canonical (paise|cents)
+        amountPaise?: number;                      // legacy alias
+        tdsReceivedPaise: number;
+        method: string;
+        provider?: string;
+        razorpayPaymentId: string | null;
+        stripePaymentIntentId?: string | null;
+        paidAt: string | null;
+    };
+}
+
+export async function renderInvoicePdf(args: RenderArgs): Promise<Buffer> {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595, 842]);              // A4 portrait (pt)
+    const { height } = page.getSize();
+
+    const currency: "INR" | "USD" = args.currency || "INR";
+    const isUSD = currency === "USD";
+    const amountMinor = args.payment.amountMinor ?? args.payment.amountPaise ?? 0;
+    const tdsMinor = args.payment.tdsReceivedPaise || 0;
+    const netReceivedMinor = amountMinor - tdsMinor;
+    const fmt = (m: number) => formatMoney(m, currency);
+
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontItalic  = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+    const colors = {
+        primary: hexToRgb(SYNAPSIS_CONFIG.brand.primaryHex),       // deep navy
+        accent:  hexToRgb(SYNAPSIS_CONFIG.brand.accentHex),         // azure
+        accent2: hexToRgb(SYNAPSIS_CONFIG.brand.accent2Hex),        // royal
+        muted:   hexToRgb(SYNAPSIS_CONFIG.brand.mutedHex),
+        text:    hexToRgb("#1A1A1A"),
+        white:   rgb(1, 1, 1),
+    };
+    const ctx: DrawCtx = {
+        page,
+        fonts: { regular: fontRegular, bold: fontBold, italic: fontItalic },
+        colors: { primary: colors.primary, accent: colors.accent, muted: colors.muted, text: colors.text },
+    };
+
+    // ─── HEADER BAR (deep navy) ────────────────────────────────────────────
+    drawRect(page, 0, height - 100, 595, 100, colors.primary);
+    drawText(ctx, "SYNAPSIS INDUSTRIES", 40, height - 40, { size: 22, bold: true, color: colors.white });
+    drawText(ctx, SYNAPSIS_CONFIG.tagline, 40, height - 60, { size: 9, color: hexToRgb("#94A3B8") });
+    drawText(ctx, "INVOICE", 595 - 110, height - 40, { size: 24, bold: true, color: colors.accent });
+    drawText(ctx, args.invoiceNumber, 595 - 110, height - 60, { size: 10, color: hexToRgb("#94A3B8") });
+
+    let y = height - 140;
+
+    // ─── BILL FROM / INVOICE DETAILS ───────────────────────────────────────
+    drawText(ctx, "BILL FROM", 40, y, { size: 8, bold: true, color: colors.muted });
+    drawText(ctx, "INVOICE DETAILS", 320, y, { size: 8, bold: true, color: colors.muted });
+    y -= 18;
+
+    drawText(ctx, SYNAPSIS_CONFIG.legalName, 40, y, { size: 11, bold: true });
+    drawText(ctx, "Issue Date:", 320, y, { size: 9, color: colors.muted });
+    drawText(ctx, new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }), 400, y, { size: 9 });
+    y -= 14;
+
+    drawText(ctx, SYNAPSIS_CONFIG.proprietorshipLine, 40, y, { size: 9, color: colors.muted });
+    if (args.payment.paidAt) {
+        drawText(ctx, "Payment Date:", 320, y, { size: 9, color: colors.muted });
+        drawText(ctx, new Date(args.payment.paidAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }), 400, y, { size: 9 });
+    }
+    y -= 14;
+
+    drawText(ctx, `${SYNAPSIS_CONFIG.address.line1}`, 40, y, { size: 9, color: colors.muted });
+    drawText(ctx, "Currency:", 320, y, { size: 9, color: colors.muted });
+    drawText(ctx, isUSD ? "USD ($)" : "INR (Rs)", 400, y, { size: 9 });
+    y -= 12;
+    drawText(ctx, `${SYNAPSIS_CONFIG.address.city}, ${SYNAPSIS_CONFIG.address.state} ${SYNAPSIS_CONFIG.address.pincode}`, 40, y, { size: 9, color: colors.muted });
+    drawText(ctx, "Method:", 320, y, { size: 9, color: colors.muted });
+    const methodLabel =
+        args.payment.method === "manual_neft" ? "NEFT/RTGS" :
+        args.payment.method === "stripe"      ? "Stripe (International)" :
+        args.payment.method === "razorpay"    ? "Razorpay (Online)" :
+        "Manual";
+    drawText(ctx, methodLabel, 400, y, { size: 9 });
+    y -= 12;
+
+    drawText(ctx, `Email: ${SYNAPSIS_CONFIG.contact.email}`, 40, y, { size: 9, color: colors.muted });
+    y -= 12;
+    drawText(ctx, `Phone: ${SYNAPSIS_CONFIG.contact.phone}`, 40, y, { size: 9, color: colors.muted });
+    y -= 16;
+
+    drawText(ctx, `PAN: XXXXX${SYNAPSIS_CONFIG.panLast4}    Udyam: ${SYNAPSIS_CONFIG.udyamRegistration}`, 40, y, { size: 8, color: colors.muted });
+    y -= 12;
+    if (isUSD) {
+        drawText(ctx, "Place of Supply: Outside India  ·  Export of Services (LUT — Zero-rated)", 40, y, { size: 8, color: colors.muted });
+    } else {
+        drawText(ctx, `GSTIN: ${SYNAPSIS_CONFIG.gstin || "Not Applicable (Sole Proprietor — below Rs.20L threshold)"}`, 40, y, { size: 8, color: colors.muted });
+    }
+    y -= 24;
+
+    // ─── BILL TO ───────────────────────────────────────────────────────────
+    drawText(ctx, "BILL TO", 40, y, { size: 8, bold: true, color: colors.muted });
+    y -= 18;
+    drawText(ctx, args.deal.name, 40, y, { size: 12, bold: true });
+    y -= 14;
+    if (args.deal.company) {
+        drawText(ctx, args.deal.company, 40, y, { size: 10, color: colors.muted });
+        y -= 14;
+    }
+    drawText(ctx, `Project: ${args.deal.need}`, 40, y, { size: 9, color: colors.muted });
+    y -= 14;
+    drawText(ctx, `Deal Reference: ${args.deal.token}`, 40, y, { size: 9, color: colors.muted });
+    y -= 28;
+
+    // ─── LINE ITEMS TABLE ──────────────────────────────────────────────────
+    drawRect(page, 40, y - 4, 515, 22, hexToRgb("#F1F5F9"));
+    drawText(ctx, "DESCRIPTION", 50, y + 4, { size: 8, bold: true, color: colors.muted });
+    drawText(ctx, "PHASE", 350, y + 4, { size: 8, bold: true, color: colors.muted });
+    drawText(ctx, "AMOUNT", 480, y + 4, { size: 8, bold: true, color: colors.muted });
+    y -= 30;
+
+    const phaseLabel = PAYMENT_SPLIT[args.payment.phase].label;
+    const phaseName = PHASE_NAMES[args.payment.phase];
+    drawText(ctx, `${phaseLabel} — Synapsis Engagement`, 50, y, { size: 11, bold: true });
+    drawText(ctx, `Phase ${args.payment.phase} (${phaseName})`, 350, y, { size: 10 });
+    drawText(ctx, fmt(amountMinor), 480, y, { size: 11, bold: true });
+    y -= 14;
+    drawText(ctx, `${PAYMENT_SPLIT[args.payment.phase].percentage}% milestone — Per Engagement Protocol`, 50, y, { size: 9, color: colors.muted });
+    y -= 28;
+
+    drawLine(page, 40, y, 555, y, colors.muted, 0.5);
+    y -= 18;
+
+    // ─── SUMMARY ───────────────────────────────────────────────────────────
+    const tdsLine = !isUSD && tdsMinor > 0;
+
+    drawText(ctx, "Subtotal", 380, y, { size: 10, color: colors.muted });
+    drawText(ctx, fmt(amountMinor), 480, y, { size: 10 });
+    y -= 14;
+
+    if (isUSD) {
+        drawText(ctx, "GST / IGST", 380, y, { size: 10, color: colors.muted });
+        drawText(ctx, "0% (Export — LUT)", 480, y, { size: 10, color: colors.muted });
+    } else {
+        drawText(ctx, "GST", 380, y, { size: 10, color: colors.muted });
+        drawText(ctx, "Not Applicable", 480, y, { size: 10, color: colors.muted });
+    }
+    y -= 14;
+
+    if (tdsLine) {
+        drawText(ctx, "TDS Deducted (by Client)", 380, y, { size: 10, color: colors.muted });
+        drawText(ctx, `(${fmt(tdsMinor)})`, 480, y, { size: 10, color: hexToRgb("#DC2626") });
+        y -= 14;
+    }
+    drawLine(page, 380, y + 4, 555, y + 4, colors.muted, 0.5);
+    y -= 8;
+
+    drawText(ctx, "TOTAL DUE", 380, y, { size: 11, bold: true });
+    drawText(ctx, fmt(amountMinor), 480, y, { size: 12, bold: true, color: colors.primary });
+    y -= 14;
+
+    if (tdsLine) {
+        drawText(ctx, "Net Received", 380, y, { size: 9, color: colors.muted });
+        drawText(ctx, fmt(netReceivedMinor), 480, y, { size: 10, color: colors.muted });
+        y -= 14;
+    }
+
+    // Amount in words
+    if (isUSD) {
+        const dollars = Math.floor(amountMinor / 100);
+        drawText(ctx, "In words:", 40, y, { size: 8, bold: true, color: colors.muted });
+        drawText(ctx, `US Dollars ${dollars.toLocaleString("en-US")} Only`, 90, y, { size: 9, italic: true });
+    } else {
+        const rupees = Math.floor(amountMinor / 100);
+        drawText(ctx, "In words:", 40, y, { size: 8, bold: true, color: colors.muted });
+        drawText(ctx, `Indian Rupees ${numberToIndianWords(rupees)} Only`, 90, y, { size: 9, italic: true });
+    }
+    y -= 24;
+
+    // ─── PAYMENT REFERENCE ─────────────────────────────────────────────────
+    if (args.payment.razorpayPaymentId) {
+        drawText(ctx, "Payment Reference", 40, y, { size: 8, bold: true, color: colors.muted });
+        y -= 14;
+        drawText(ctx, `Razorpay Payment ID: ${args.payment.razorpayPaymentId}`, 40, y, { size: 9 });
+        y -= 18;
+    } else if (args.payment.stripePaymentIntentId) {
+        drawText(ctx, "Payment Reference", 40, y, { size: 8, bold: true, color: colors.muted });
+        y -= 14;
+        drawText(ctx, `Stripe Payment ID: ${args.payment.stripePaymentIntentId}`, 40, y, { size: 9 });
+        y -= 18;
+    }
+
+    // ─── BANK / PAYMENT INSTRUCTIONS ───────────────────────────────────────
+    if (isUSD) {
+        drawRect(page, 40, y - 60, 515, 60, hexToRgb("#F8FAFC"));
+        drawText(ctx, "PAID VIA STRIPE (International)", 50, y - 12, { size: 8, bold: true, color: colors.muted });
+        drawText(ctx, "All major cards · ACH (US) · SEPA (EU) · Apple/Google Pay · Link", 50, y - 28, { size: 9, color: colors.text });
+        drawText(ctx, "For wire transfer or invoicing inquiries: " + SYNAPSIS_CONFIG.contact.email, 50, y - 42, { size: 9, color: colors.text });
+        y -= 80;
+    } else {
+        drawRect(page, 40, y - 80, 515, 80, hexToRgb("#F8FAFC"));
+        drawText(ctx, "PAY TO (NEFT / RTGS reference)", 50, y - 12, { size: 8, bold: true, color: colors.muted });
+        const bankLines = formatBankInstructions().split("\n");
+        let by = y - 28;
+        for (const line of bankLines) {
+            drawText(ctx, line, 50, by, { size: 9, color: colors.text });
+            by -= 12;
+        }
+        y -= 100;
+    }
+
+    // ─── FOOTER ────────────────────────────────────────────────────────────
+    drawLine(page, 40, 80, 555, 80, colors.muted, 0.5);
+    drawText(ctx, SYNAPSIS_CONFIG.invoice.footer, 40, 64, { size: 8, italic: true, color: colors.muted });
+    drawText(ctx, `Payment Terms: ${SYNAPSIS_CONFIG.invoice.paymentTerms}`, 40, 50, { size: 8, color: colors.muted });
+    drawText(ctx, "synapsis.industries", 40, 36, { size: 8, color: colors.accent });
+    drawText(ctx, args.invoiceNumber, 595 - 100, 36, { size: 8, bold: true, color: colors.muted });
+
+    const bytes = await pdfDoc.save();
+    return Buffer.from(bytes);
+}
+
+// ─── Re-export for serve route ─────────────────────────────────────────────
+export { getInvoiceByNumber };
