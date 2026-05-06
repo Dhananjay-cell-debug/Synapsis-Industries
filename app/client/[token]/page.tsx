@@ -1488,6 +1488,14 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
     );
     const { token } = useParams();
 
+    // If already on phase 2+ and stuck on questionnaire, kick to overview immediately
+    useEffect(() => {
+        if (phase >= 2 && activeTab === "questionnaire") {
+            setActiveTab("overview");
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phase]);
+
     // Auto-jump on phase advancement (first arrival into 2/3/4/5/6/7)
     const lastPhaseRef = useRef(phase);
     useEffect(() => {
@@ -1501,8 +1509,8 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
             setActiveTab("build");
         } else if (lastPhaseRef.current < 3 && phase >= 3) {
             setActiveTab("ignition");
-        } else if (lastPhaseRef.current < 2 && phase >= 2 && blueprintAvailable) {
-            setActiveTab("blueprint");
+        } else if (lastPhaseRef.current < 2 && phase >= 2) {
+            setActiveTab(blueprintAvailable ? "blueprint" : "overview");
         }
         lastPhaseRef.current = phase;
     }, [phase, blueprintAvailable]);
@@ -1698,7 +1706,7 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                         >
                             {activeTab === "overview" && <OverviewTab deal={deal} onQuestionnaireClick={() => setActiveTab("questionnaire")} onProcessClick={() => setActiveTab("process")} onUnlock={handleUnlock} unlocked={false} />}
                             {activeTab === "process" && <ProcessTab deal={deal} onQuestionnaireUnlock={handleQuestionnaireUnlock} />}
-                            {activeTab === "questionnaire" && <QuestionnaireTab deal={deal} onSubmit={handleQuestionnaireSubmit} onEnterWorkspace={(updated) => { onStatusUpdate(updated); }} />}
+                            {activeTab === "questionnaire" && <QuestionnaireTab deal={deal} onSubmit={handleQuestionnaireSubmit} onEnterWorkspace={(updated) => { onStatusUpdate(updated); setActiveTab("overview"); }} />}
                             {activeTab === "chat" && <ChatTab deal={deal} onSend={handleSendMessage} />}
                             {activeTab === "blueprint" && (
                                 <BlueprintViewer
