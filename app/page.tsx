@@ -108,13 +108,14 @@ function TickerSection() {
                     <h2 className="font-serif text-white text-5xl md:text-7xl leading-[1.0] mb-6">Systems that<br /><em>scale.</em></h2>
                     <p className="text-white/50 text-base max-w-sm mx-auto mb-8">Built for founders, agencies, and brands who want results — not just deliverables.</p>
                     <div className="flex items-center justify-center gap-4" style={{ zIndex: 100, position: 'relative' }}>
-                        <button
-                            onClick={() => window.location.href = "/auth/signin"}
-                            className="px-6 py-3 text-xs font-semibold tracking-[0.18em] uppercase border border-white/20 text-white/70 hover:text-white hover:border-white/50 transition-all duration-300 cursor-pointer"
-                            style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.04)" }}
+                        <a
+                            href="/auth/signin"
+                            onClick={(e) => { e.stopPropagation(); window.location.href = "/auth/signin"; }}
+                            className="px-6 py-3 text-xs font-semibold tracking-[0.18em] uppercase border border-white/20 text-white/70 hover:text-white hover:border-white/50 transition-all duration-300 cursor-pointer inline-block"
+                            style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.04)", pointerEvents: "auto", position: "relative", zIndex: 200 }}
                         >
                             Login
-                        </button>
+                        </a>
                         <button
                             onClick={() => window.scrollBy({ top: window.innerHeight * 2, behavior: "smooth" })}
                             className="px-7 py-3 text-xs font-semibold tracking-[0.18em] uppercase text-[#0A0F1E] hover:opacity-90 transition-opacity duration-300 cursor-pointer"
