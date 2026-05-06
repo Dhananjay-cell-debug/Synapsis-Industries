@@ -981,6 +981,7 @@ function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: 
     const [direction, setDirection] = useState(1);
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(!!deal.questionnaire);
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const activeSection = SECTIONS.findIndex(s => s.qIndices.includes(current));
@@ -1022,9 +1023,15 @@ function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: 
     const handleSubmit = async () => {
         if (!canAdvance || submitting) return;
         setSubmitting(true);
-        await onSubmit(answers);
-        setSubmitted(true);
-        setSubmitting(false);
+        setSubmitError(null);
+        try {
+            await onSubmit(answers);
+            setSubmitted(true);
+        } catch (e: any) {
+            setSubmitError(e?.message || "Could not save your responses. Try again.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     if (submitted) {
@@ -1331,6 +1338,11 @@ function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: 
                                 )}
                             </div>
                         </div>
+                        {submitError && (
+                            <div className="mt-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs tracking-wide">
+                                {submitError}
+                            </div>
+                        )}
                     </motion.div>
                 </AnimatePresence>
             </div>
@@ -1507,19 +1519,19 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
     }, [token, onStatusUpdate]);
 
     const handleQuestionnaireSubmit = async (answers: Record<string, string>) => {
-        try {
-            const res = await fetch(`/api/deals/${token}/questionnaire`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ answers })
-            });
-            if (res.ok) {
-                const updated = await res.json();
-                onStatusUpdate(updated);
-                setActiveTab("chat");
-                window.scrollTo({ top: 0, behavior: "smooth" });
-            }
-        } catch (e) { console.error("Submit failed", e); }
+        const res = await fetch(`/api/deals/${token}/questionnaire`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ answers })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Submit failed (${res.status})`);
+        }
+        const updated = await res.json();
+        onStatusUpdate(updated);
+        setActiveTab("chat");
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     const handleSendMessage = async (text: string) => {

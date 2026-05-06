@@ -2725,7 +2725,7 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                                                             }
                                                         </div>
                                                         <p className={`text-[10px] text-white/20 px-1 ${isAdmin ? "text-right" : ""}`}>
-                                                            {isAdmin ? "You (admin)" : deal.name.split(" ")[0]} · {timeAgo(msg.timestamp)}
+                                                            {isAdmin ? "You (admin)" : (deal.name || "Client").split(" ")[0]} · {timeAgo(msg.timestamp)}
                                                         </p>
                                                     </div>
                                                 );
@@ -2785,7 +2785,7 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                         <p className="text-[10px] tracking-[0.5em] uppercase text-white/15 mb-2">Admin Actions</p>
 
                         {/* 1. Schedule Call */}
-                        <a href={`https://calendar.google.com/calendar/r/eventedit?text=Discovery+Call+—+${encodeURIComponent(deal.name)}`}
+                        <a href={`https://calendar.google.com/calendar/r/eventedit?text=Discovery+Call+—+${encodeURIComponent(deal.name || "")}`}
                             target="_blank" rel="noopener noreferrer"
                             className="w-full px-5 py-4 rounded-xl border border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] transition-all text-left group">
                             <div className="flex items-center gap-3">
@@ -2800,7 +2800,7 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                         </a>
 
                         {/* 2. Message Client (WhatsApp) */}
-                        <a href={`https://wa.me/?text=Hi ${encodeURIComponent(deal.name.split(" ")[0])}, just following up on your project enquiry — do you have time for a quick discovery call?`}
+                        <a href={`https://wa.me/?text=Hi ${encodeURIComponent((deal.name || "there").split(" ")[0])}, just following up on your project enquiry — do you have time for a quick discovery call?`}
                             target="_blank" rel="noopener noreferrer"
                             className="w-full px-5 py-4 rounded-xl border border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] transition-all text-left group">
                             <div className="flex items-center gap-3">
@@ -3383,9 +3383,15 @@ export default function Dashboard() {
         const res2 = await fetch("/api/deals", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: deal!.token, status: "elected", electedAt: Date.now(), projectDays }),
+            body: JSON.stringify({ token: deal!.token, status: "elected", electedAt: new Date().toISOString(), projectDays }),
         }); // Note: customQuestions saved separately by InterestedChatModal before calling onElect
+        if (!res2.ok) {
+            const err = await res2.json().catch(() => ({}));
+            alert(`Election failed: ${(err as any)?.error || res2.statusText}`);
+            return;
+        }
         const updated: Deal = await res2.json();
+        if (!updated?.token) return;
         setDeals(prev => prev.map(d => d.token === updated.token ? updated : d));
         // Open Phase 1 workspace immediately
         setActiveWorkspace(updated);
@@ -3439,7 +3445,7 @@ export default function Dashboard() {
         const res2 = await fetch("/api/deals", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: deal!.token, status: "rejected", rejectedAt: Date.now(), rejectionNote: note || "" }),
+            body: JSON.stringify({ token: deal!.token, status: "rejected", rejectedAt: new Date().toISOString(), rejectionNote: note || "" }),
         });
         const updated: Deal = await res2.json();
         setDeals(prev => prev.map(d => d.token === updated.token ? updated : d));
