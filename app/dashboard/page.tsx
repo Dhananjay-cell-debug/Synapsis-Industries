@@ -3321,32 +3321,36 @@ export default function Dashboard() {
             .catch(() => localStorage.removeItem("synapsis_client_token"));
     }, [status, isAdmin, router]);
 
-    // Fetch submissions + deals on mount (admin only)
+    // Fetch submissions + deals on mount + every 15s (admin only)
     useEffect(() => {
         if (!isAdmin) return;
-        Promise.all([
-            fetch("/api/submissions").then(r => r.json()).catch(() => []),
-            fetch("/api/deals").then(r => r.json()).catch(() => []),
-        ]).then(([subs, deals]: [Submission[], Deal[]]) => {
-            if (Array.isArray(deals)) setDeals(deals);
-            if (Array.isArray(subs)) {
-                // Merge: add any deals that have no matching submission (recovery for old data)
-                const subIds = new Set(subs.map(s => s.id));
-                const orphaned: Submission[] = (Array.isArray(deals) ? deals : [])
-                    .filter((d: Deal) => !subIds.has(d.submissionId))
-                    .map((d: Deal) => ({
-                        id: d.submissionId,
-                        name: d.name,
-                        company: d.company,
-                        need: d.need,
-                        budget: d.budget,
-                        message: d.message,
-                        date: new Date(d.createdAt).toISOString().slice(0, 10),
-                        status: "new",
-                    }));
-                setSubmissions([...orphaned, ...subs]);
-            }
-        });
+        const fetchAll = () => {
+            Promise.all([
+                fetch("/api/submissions").then(r => r.json()).catch(() => []),
+                fetch("/api/deals").then(r => r.json()).catch(() => []),
+            ]).then(([subs, deals]: [Submission[], Deal[]]) => {
+                if (Array.isArray(deals)) setDeals(deals);
+                if (Array.isArray(subs)) {
+                    const subIds = new Set(subs.map(s => s.id));
+                    const orphaned: Submission[] = (Array.isArray(deals) ? deals : [])
+                        .filter((d: Deal) => !subIds.has(d.submissionId))
+                        .map((d: Deal) => ({
+                            id: d.submissionId,
+                            name: d.name,
+                            company: d.company,
+                            need: d.need,
+                            budget: d.budget,
+                            message: d.message,
+                            date: new Date(d.createdAt).toISOString().slice(0, 10),
+                            status: "new",
+                        }));
+                    setSubmissions([...orphaned, ...subs]);
+                }
+            });
+        };
+        fetchAll();
+        const iv = setInterval(fetchAll, 15000);
+        return () => clearInterval(iv);
     }, [isAdmin]);
 
     const addSubmission = (s: Submission) => {
