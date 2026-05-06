@@ -975,6 +975,7 @@ function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: 
         QUES.forEach((_, i) => { init[`q${i}`] = ""; });
         return init;
     });
+    const [customBudget, setCustomBudget] = useState("");
 
     const [current, setCurrent] = useState(0);
     const [direction, setDirection] = useState(1);
@@ -1142,25 +1143,90 @@ function QuestionnaireTab({ deal, onSubmit }: { deal: Deal; onSubmit: (answers: 
 
                         {/* Special Question Rendering: Budget Selection (Q4) */}
                         {current === 4 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {[
-                                    { label: "₹50k - ₹1L", value: "50k-1L" },
-                                    { label: "₹1L - ₹3L", value: "1L-3L" },
-                                    { label: "₹3L+", value: "3L+" },
-                                ].map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        onClick={() => setAnswers(prev => ({ ...prev, [`q${current}`]: opt.label }))}
-                                        className={`p-6 rounded-2xl border transition-all text-center flex flex-col gap-2 ${
-                                            currentAnswer === opt.label 
-                                                ? "bg-[#11B8EA]/10 border-[#11B8EA] text-white" 
-                                                : "bg-white/[0.03] border-white/10 text-white/40 hover:border-white/25 hover:text-white/60"
-                                        }`}
-                                    >
-                                        <span className="text-xl font-bold">{opt.label}</span>
-                                        <span className="text-[9px] uppercase tracking-widest opacity-50">Allocation</span>
-                                    </button>
-                                ))}
+                            <div className="flex flex-col gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {[
+                                        { label: "Under ₹50k", value: "under-50k" },
+                                        { label: "₹50k - ₹1L", value: "50k-1L" },
+                                        { label: "₹1L - ₹3L", value: "1L-3L" },
+                                        { label: "₹3L+", value: "3L+" },
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => {
+                                                if (opt.value !== "under-50k") {
+                                                    setCustomBudget("");
+                                                    setAnswers(prev => ({ ...prev, [`q${current}`]: opt.label }));
+                                                } else {
+                                                    setAnswers(prev => ({ ...prev, [`q${current}`]: "Under ₹50k" }));
+                                                }
+                                            }}
+                                            className={`p-5 rounded-2xl border transition-all text-center flex flex-col gap-2 ${
+                                                (opt.value === "under-50k"
+                                                    ? currentAnswer.startsWith("Under ₹50k")
+                                                    : currentAnswer === opt.label)
+                                                    ? "bg-[#11B8EA]/10 border-[#11B8EA] text-white"
+                                                    : "bg-white/[0.03] border-white/10 text-white/40 hover:border-white/25 hover:text-white/60"
+                                            }`}
+                                        >
+                                            <span className="text-lg font-bold">{opt.label}</span>
+                                            <span className="text-[9px] uppercase tracking-widest opacity-50">Allocation</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Under ₹50k — custom budget input + 30/30/40 split */}
+                                {currentAnswer.startsWith("Under ₹50k") && (
+                                    <div className="p-5 rounded-2xl border border-[#11B8EA]/20 bg-[#11B8EA]/[0.04] flex flex-col gap-4">
+                                        <div>
+                                            <label className="text-[9px] uppercase tracking-widest text-white/30 font-black mb-2 block">Your Exact Budget (₹)</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={49999}
+                                                placeholder="e.g. 35000"
+                                                value={customBudget}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setCustomBudget(val);
+                                                    const label = val && Number(val) > 0
+                                                        ? `Under ₹50k · ₹${Number(val).toLocaleString("en-IN")}`
+                                                        : "Under ₹50k";
+                                                    setAnswers(prev => ({ ...prev, [`q${current}`]: label }));
+                                                }}
+                                                className="w-full bg-transparent border-b border-white/10 pb-2 text-white text-sm outline-none focus:border-[#11B8EA]/50 transition-colors placeholder:text-white/20"
+                                            />
+                                        </div>
+
+                                        {customBudget && Number(customBudget) > 0 && (
+                                            <div>
+                                                <p className="text-[9px] uppercase tracking-widest text-white/30 font-black mb-3">Phase Payment Split</p>
+                                                <div className="grid grid-cols-3 gap-3 mb-3">
+                                                    {[
+                                                        { phase: "Phase 1", pct: 30, color: "#3B6AE8" },
+                                                        { phase: "Phase 2", pct: 30, color: "#11B8EA" },
+                                                        { phase: "Phase 3", pct: 40, color: "#5B8AFF" },
+                                                    ].map(({ phase, pct, color }) => {
+                                                        const amt = Math.round(Number(customBudget) * pct / 100);
+                                                        return (
+                                                            <div key={phase} className="text-center">
+                                                                <div className="h-1 rounded-full mb-2" style={{ backgroundColor: color }} />
+                                                                <p className="text-[8px] text-white/30 uppercase tracking-wider mb-0.5">{phase}</p>
+                                                                <p className="text-sm font-bold text-white">{pct}%</p>
+                                                                <p className="text-[10px] text-white/50">₹{amt.toLocaleString("en-IN")}</p>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="flex h-1.5 rounded-full overflow-hidden gap-0.5">
+                                                    <div className="h-full rounded-l-full" style={{ width: "30%", backgroundColor: "#3B6AE8" }} />
+                                                    <div className="h-full" style={{ width: "30%", backgroundColor: "#11B8EA" }} />
+                                                    <div className="h-full rounded-r-full" style={{ width: "40%", backgroundColor: "#5B8AFF" }} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ) : current === 8 ? (
                             /* Special Question Rendering: Asset Checklist (Q8) */
