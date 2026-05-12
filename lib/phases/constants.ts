@@ -21,10 +21,38 @@ export type PhaseName = typeof PHASE_NAMES[number];
 export const phaseName = (n: number): PhaseName =>
     (PHASE_NAMES[n] as PhaseName) || "SIGNAL";
 
-// ─── Currency lock ──────────────────────────────────────────────────────────
+// ─── Currency helpers (multi-currency aware) ────────────────────────────────
+// Legacy CURRENCY/CURRENCY_SYMBOL kept as INR fallback for backwards compat;
+// every new UI surface should call currencySymbolFor / formatMajorAmount with
+// the deal's actual currency.
 
 export const CURRENCY = "INR" as const;
 export const CURRENCY_SYMBOL = "₹";
+
+export type DealCurrency = "INR" | "USD";
+
+const CURRENCY_SYMBOLS: Record<DealCurrency, string> = {
+    INR: "₹",
+    USD: "$",
+};
+
+export const currencySymbolFor = (currency?: DealCurrency | string): string =>
+    currency === "USD" ? CURRENCY_SYMBOLS.USD : CURRENCY_SYMBOLS.INR;
+
+const CURRENCY_LOCALES: Record<DealCurrency, string> = {
+    INR: "en-IN",
+    USD: "en-US",
+};
+
+export const formatMajorAmount = (amount: number, currency?: DealCurrency | string): string => {
+    const c: DealCurrency = currency === "USD" ? "USD" : "INR";
+    const locale = CURRENCY_LOCALES[c];
+    const symbol = CURRENCY_SYMBOLS[c];
+    const formatted = c === "USD"
+        ? amount.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : Math.round(amount).toLocaleString(locale);
+    return `${symbol}${formatted}`;
+};
 
 // ─── Payment split (advance / milestone / final) ────────────────────────────
 
@@ -55,8 +83,21 @@ export const GHOST_ALERT_DAYS = 7;                  // red flag
 export const DORMANT_MONTHS = 6;                    // Phase 7 dormant threshold
 
 // ─── Large project threshold (drives mid-payment requirement) ───────────────
+// Per-currency so a $5,000 international deal still triggers the mid-payment
+// rule (otherwise INR-only threshold would never trip for realistic USD deals).
 
-export const LARGE_PROJECT_THRESHOLD = 200000;      // ₹2,00,000 INR
+export const LARGE_PROJECT_THRESHOLD = 200000;      // ₹2,00,000 INR — legacy export, used only as INR fallback
+
+export const LARGE_PROJECT_THRESHOLDS: Record<DealCurrency, number> = {
+    INR: 200000,    // ₹2,00,000
+    USD: 2500,      // $2,500 — roughly threshold-equivalent at long-run FX, slot where 30/30/40 split is justified
+};
+
+export const largeProjectThresholdFor = (currency?: DealCurrency | string): number =>
+    currency === "USD" ? LARGE_PROJECT_THRESHOLDS.USD : LARGE_PROJECT_THRESHOLDS.INR;
+
+export const isLargeProject = (totalPriceMajor: number, currency?: DealCurrency | string): boolean =>
+    (totalPriceMajor || 0) >= largeProjectThresholdFor(currency);
 
 // ─── Discovery Questionnaire (Phase 1 — per syna_core.md) ───────────────────
 

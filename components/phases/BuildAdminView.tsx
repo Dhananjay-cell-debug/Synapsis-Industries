@@ -17,7 +17,7 @@ import {
     CheckCircle2, Hourglass, Plus, FileText, AlertCircle, Send, Receipt, GitBranch,
     Clock, IndianRupee, ArrowRight, ChevronDown, ChevronUp, ExternalLink,
 } from "lucide-react";
-import { CURRENCY_SYMBOL, paymentAmountFor, LARGE_PROJECT_THRESHOLD } from "@/lib/phases/constants";
+import { paymentAmountFor, isLargeProject, largeProjectThresholdFor, formatMajorAmount, currencySymbolFor } from "@/lib/phases/constants";
 import type { SprintReport, ChangeOrder } from "@/lib/phases/schema";
 
 interface DealBare {
@@ -28,6 +28,10 @@ interface DealBare {
     totalPrice?: number;
     payments?: { phase: number; status: string; amount: number; paidAt?: number; sessionId?: string }[];
     phaseData?: any;
+    currency?: "INR" | "USD";
+    paymentProvider?: "razorpay" | "stripe";
+    acceptInternationalCards?: boolean;
+    clientCountry?: string;
 }
 
 interface Props {
@@ -42,7 +46,7 @@ export default function BuildAdminView({ deal, adminEmail, onUpdated }: Props) {
     const changeOrders: ChangeOrder[] = p4.changeOrders || [];
     const stagingUrl: string = p4.stagingUrl || "";
 
-    const isLarge = (deal.totalPrice || 0) >= LARGE_PROJECT_THRESHOLD;
+    const isLarge = isLargeProject(deal.totalPrice || 0, deal.currency);
     const midAmount = deal.totalPrice ? paymentAmountFor(deal.totalPrice, 4) : 0;
     const midPayment = (deal.payments || []).find(p => p.phase === 4);
     const midPaid = !!midPayment && midPayment.status === "paid";
@@ -50,7 +54,7 @@ export default function BuildAdminView({ deal, adminEmail, onUpdated }: Props) {
     const canSubmitFinal = sprintReports.length > 0 && (!isLarge || midPaid);
     const finalBlockReason = sprintReports.length === 0
         ? "Post at least one sprint report before submitting final"
-        : (isLarge && !midPaid ? `Project ≥ ${CURRENCY_SYMBOL}${(LARGE_PROJECT_THRESHOLD / 1000)}k — mid-payment required first` : null);
+        : (isLarge && !midPaid ? `Project ≥ ${formatMajorAmount(largeProjectThresholdFor(deal.currency), deal.currency)} — mid-payment required first` : null);
 
     const refresh = async () => {
         const res = await fetch(`/api/deals?token=${deal.token}`);
@@ -102,7 +106,7 @@ export default function BuildAdminView({ deal, adminEmail, onUpdated }: Props) {
                 ) : (
                     <div className="space-y-3 mb-4">
                         {changeOrders.map(co => (
-                            <ChangeOrderCard key={co.id} co={co} />
+                            <ChangeOrderCard key={co.id} co={co} currency={deal.currency} />
                         ))}
                     </div>
                 )}
@@ -111,18 +115,19 @@ export default function BuildAdminView({ deal, adminEmail, onUpdated }: Props) {
                     adminEmail={adminEmail}
                     existingOrders={changeOrders}
                     onCreated={onUpdated}
+                    currency={deal.currency}
                 />
             </Section>
 
             {/* MID PAYMENT */}
             {isLarge && (
-                <Section title={`Mid Payment · ${CURRENCY_SYMBOL}${midAmount.toLocaleString("en-IN")}`} icon={<Receipt size={14} />}>
+                <Section title={`Mid Payment · ${formatMajorAmount(midAmount, deal.currency)}`} icon={<Receipt size={14} />}>
                     {midPaid ? (
                         <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-4 flex items-center gap-3">
                             <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
                             <div>
                                 <p className="text-emerald-300 text-sm font-semibold">
-                                    Mid-payment received — {CURRENCY_SYMBOL}{midPayment?.amount.toLocaleString("en-IN")}
+                                    Mid-payment received — {formatMajorAmount(midPayment?.amount || 0, deal.currency)}
                                 </p>
                                 {midPayment?.paidAt && (
                                     <p className="text-white/50 text-xs mt-0.5">
@@ -402,7 +407,7 @@ function SprintReportComposer({ token, adminEmail, existingReports, currentStagi
 
 // ─── Change Order Card (display) ────────────────────────────────────────────
 
-function ChangeOrderCard({ co }: { co: ChangeOrder }) {
+function ChangeOrderCard({ co, currency }: { co: ChangeOrder; currency?: "INR" | "USD" }) {
     const [open, setOpen] = useState(false);
     const accent = co.status === "approved" ? "#10B981" : co.status === "declined" ? "#EF4444" : "#F59E0B";
     return (
@@ -426,7 +431,7 @@ function ChangeOrderCard({ co }: { co: ChangeOrder }) {
                             <div className="grid grid-cols-3 gap-2">
                                 <Stat label="Scope" value={co.scopeImpact} />
                                 <Stat label="Timeline" value={`+${co.timelineImpactDays}d`} />
-                                <Stat label="Cost" value={`${CURRENCY_SYMBOL}${co.costImpact.toLocaleString("en-IN")}`} />
+                                <Stat label="Cost" value={formatMajorAmount(co.costImpact, currency)} />
                             </div>
                             {co.clientNote && (
                                 <div className="rounded-lg bg-white/[0.03] p-2.5">
@@ -453,9 +458,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 // ─── Change Order Composer ──────────────────────────────────────────────────
 
-function ChangeOrderComposer({ token, adminEmail, existingOrders, onCreated }: {
+function ChangeOrderComposer({ token, adminEmail, existingOrders, onCreated, currency }: {
     token: string; adminEmail: string; existingOrders: ChangeOrder[];
     onCreated: (deal: DealBare) => void;
+    currency?: "INR" | "USD";
 }) {
     const [open, setOpen] = useState(false);
     const [title, setTitle] = useState("");
@@ -540,7 +546,7 @@ function ChangeOrderComposer({ token, adminEmail, existingOrders, onCreated }: {
                     <input type="number" value={timelineImpactDays} onChange={e => setTimelineImpactDays(Number(e.target.value) || 0)}
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#3B6AE8]/40" />
                 </Field>
-                <Field label={`Cost impact (${CURRENCY_SYMBOL})`}>
+                <Field label={`Cost impact (${currencySymbolFor(currency)})`}>
                     <input type="number" value={costImpact} onChange={e => setCostImpact(Number(e.target.value) || 0)}
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#3B6AE8]/40" />
                 </Field>
@@ -623,7 +629,7 @@ function MidPaymentPending({ deal, midAmount, adminEmail, onUpdated }: {
                 <Hourglass size={18} className="text-amber-400 shrink-0" />
                 <div>
                     <p className="text-white text-sm font-semibold">
-                        Awaiting mid-payment of {CURRENCY_SYMBOL}{midAmount.toLocaleString("en-IN")}
+                        Awaiting mid-payment of {formatMajorAmount(midAmount, deal.currency)}
                     </p>
                     <p className="text-white/50 text-xs mt-0.5">
                         Client pays via the Razorpay gate on their portal. Submit Final stays locked until this lands.

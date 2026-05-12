@@ -16,7 +16,8 @@ import {
     paymentAmountFor,
     SIGNAL_EXPIRY_HOURS,
     SIGNAL_EXTENSION_HOURS,
-    LARGE_PROJECT_THRESHOLD,
+    isLargeProject,
+    largeProjectThresholdFor,
     BLUEPRINT_CHANGE_ROUNDS_MAX,
     DEFAULT_BLUEPRINT_PAYMENT_STRUCTURE,
     REVIEW_PERIOD_BUSINESS_DAYS,
@@ -401,12 +402,14 @@ export function t4to5_submitFinal(
         return { ok: false, reason: "At least 1 sprint report required before final submission" };
     }
 
-    // Mid-payment check for large projects
-    const isLarge = (deal.totalPrice || 0) >= LARGE_PROJECT_THRESHOLD;
+    // Mid-payment check for large projects (currency-aware)
+    const isLarge = isLargeProject(deal.totalPrice || 0, deal.currency);
     if (isLarge) {
         const midPaid = deal.payments?.find(p => p.phase === 4 && p.status === "paid");
         if (!midPaid) {
-            return { ok: false, reason: `Project total ≥ ₹${LARGE_PROJECT_THRESHOLD / 1000}k — mid-payment must be paid before final` };
+            const threshold = largeProjectThresholdFor(deal.currency);
+            const symbol = (deal.currency || "INR") === "USD" ? "$" : "₹";
+            return { ok: false, reason: `Project total ≥ ${symbol}${threshold.toLocaleString(deal.currency === "USD" ? "en-US" : "en-IN")} — mid-payment must be paid before final` };
         }
     }
 

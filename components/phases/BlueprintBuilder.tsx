@@ -16,8 +16,10 @@ import {
 import {
     DEFAULT_BLUEPRINT_PAYMENT_STRUCTURE,
     BLUEPRINT_CHANGE_ROUNDS_MAX,
-    LARGE_PROJECT_THRESHOLD,
-    CURRENCY_SYMBOL,
+    currencySymbolFor,
+    formatMajorAmount,
+    isLargeProject,
+    largeProjectThresholdFor,
 } from "@/lib/phases/constants";
 import type {
     Blueprint, BlueprintInvestmentLine, BlueprintTimelineSprint,
@@ -30,6 +32,7 @@ interface DealBare {
     company: string;
     phase: number;
     phaseData?: { phase2?: { blueprint?: Blueprint; changeRequestCount?: number } };
+    currency?: "INR" | "USD";
 }
 
 interface Props {
@@ -66,12 +69,16 @@ export default function BlueprintBuilder({ deal, adminEmail, onSaved, onPreview 
     const [busy, setBusy] = useState<"save" | "send" | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    const currency = deal.currency || "INR";
+    const symbol = currencySymbolFor(currency);
+    const isUSD = currency === "USD";
+
     // Auto-recompute investment total
     const investmentTotal = useMemo(
         () => bp.investment.reduce((s, l) => s + (Number(l.amount) || 0), 0),
         [bp.investment]
     );
-    const isLarge = investmentTotal >= LARGE_PROJECT_THRESHOLD;
+    const isLarge = isLargeProject(investmentTotal, currency);
     const changeRounds = deal.phaseData?.phase2?.changeRequestCount || 0;
     const blocked = changeRounds >= BLUEPRINT_CHANGE_ROUNDS_MAX && existing?.status === "changes_requested";
 
@@ -224,23 +231,31 @@ export default function BlueprintBuilder({ deal, adminEmail, onSaved, onPreview 
             </Section>
 
             {/* Investment */}
-            <Section icon={IndianRupee} title="Investment breakdown">
+            <Section icon={IndianRupee} title={`Investment breakdown · ${currency}${isUSD ? " (foreign client — USD)" : ""}`}>
+                {isUSD && (
+                    <div className="mb-3 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-[11px] text-amber-300">
+                        Enter amounts in <span className="font-bold">US dollars (whole or decimal)</span>, not rupees. Razorpay International will charge in USD.
+                    </div>
+                )}
                 <RowList
                     rows={bp.investment}
                     onChange={v => update("investment", v)}
                     template={() => ({ label: "", amount: 0 } as BlueprintInvestmentLine)}
                     fields={[
-                        { key: "label", label: "Line item", placeholder: "Design & prototyping" },
-                        { key: "amount", label: `Amount (${CURRENCY_SYMBOL})`, type: "number", width: "140px" },
+                        { key: "label", label: "Line item", placeholder: isUSD ? "Discovery & architecture" : "Design & prototyping" },
+                        { key: "amount", label: `Amount (${symbol})`, type: "number", width: "140px" },
                     ]}
                 />
                 <div className="mt-3 flex items-center justify-between p-3 rounded-lg bg-white/[0.04] border border-white/8">
                     <span className="text-[10px] tracking-[0.4em] uppercase text-white/50">Project total</span>
                     <span className="font-mono text-white text-lg">
-                        {CURRENCY_SYMBOL}{investmentTotal.toLocaleString("en-IN")}
+                        {formatMajorAmount(investmentTotal, currency)}
                         {isLarge && <span className="ml-2 text-[10px] tracking-[0.2em] uppercase text-amber-400">Large project — mid-payment required</span>}
                     </span>
                 </div>
+                <p className="mt-2 text-[10px] text-white/30">
+                    Large-project threshold for {currency}: {formatMajorAmount(largeProjectThresholdFor(currency), currency)}
+                </p>
             </Section>
 
             {/* Payment structure */}

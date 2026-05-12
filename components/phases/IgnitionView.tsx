@@ -15,7 +15,8 @@ import {
     CheckCircle2, Upload, Lock, AlertCircle, FileCheck2, Hourglass, RefreshCw,
 } from "lucide-react";
 import RazorpayCheckout from "@/components/ui/RazorpayCheckout";
-import { CURRENCY_SYMBOL, paymentAmountFor } from "@/lib/phases/constants";
+import StripeCheckout from "@/components/ui/StripeCheckout";
+import { paymentAmountFor } from "@/lib/phases/constants";
 import type { AssetChecklistItem } from "@/lib/phases/schema";
 
 interface DealBare {
@@ -71,20 +72,34 @@ export default function IgnitionView({ deal, onUpdated }: Props) {
                 title="Pay 30% advance"
                 done={advancePaid}
             >
-                <RazorpayCheckout
-                    token={deal.token}
-                    paymentPhase={3}
-                    amount={advanceAmount}
-                    currency={deal.currency}
-                    acceptInternationalCards={deal.acceptInternationalCards}
-                    clientCountry={deal.clientCountry}
-                    label="Advance — kicks off the build"
-                    description="Locks your slot, unlocks asset submission, and triggers Phase 4 once your materials land."
-                    clientName={deal.name}
-                    isPaid={advancePaid}
-                    paidAt={advancePayment?.paidAt}
-                    onPaid={refreshDeal}
-                />
+                {deal.paymentProvider === "stripe" ? (
+                    <StripeCheckout
+                        token={deal.token}
+                        paymentPhase={3}
+                        amount={advanceAmount}
+                        label="Advance — kicks off the build"
+                        description="Locks your slot, unlocks asset submission, and triggers Phase 4 once your materials land."
+                        clientName={deal.name}
+                        isPaid={advancePaid}
+                        paidAt={advancePayment?.paidAt}
+                        onPaid={refreshDeal}
+                    />
+                ) : (
+                    <RazorpayCheckout
+                        token={deal.token}
+                        paymentPhase={3}
+                        amount={advanceAmount}
+                        currency={deal.currency}
+                        acceptInternationalCards={deal.acceptInternationalCards}
+                        clientCountry={deal.clientCountry}
+                        label="Advance — kicks off the build"
+                        description="Locks your slot, unlocks asset submission, and triggers Phase 4 once your materials land."
+                        clientName={deal.name}
+                        isPaid={advancePaid}
+                        paidAt={advancePayment?.paidAt}
+                        onPaid={refreshDeal}
+                    />
+                )}
             </Section>
 
             {/* STEP 2 — Asset Checklist */}

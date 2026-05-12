@@ -15,7 +15,7 @@ import {
     CheckCircle2, AlertCircle, IndianRupee, ExternalLink, X, ShieldCheck,
     ChevronRight, Hourglass, RefreshCw,
 } from "lucide-react";
-import { CURRENCY_SYMBOL, paymentAmountFor } from "@/lib/phases/constants";
+import { paymentAmountFor, formatMajorAmount } from "@/lib/phases/constants";
 import type { AssetChecklistItem } from "@/lib/phases/schema";
 
 interface DealBare {
@@ -26,6 +26,7 @@ interface DealBare {
     totalPrice?: number;
     payments?: { phase: number; status: string; amount: number; paidAt?: number; sessionId?: string; orderId?: string }[];
     phaseData?: any;
+    currency?: "INR" | "USD";
 }
 
 interface Props {
@@ -169,7 +170,7 @@ export default function IgnitionAdminView({ deal, adminEmail, onUpdated }: Props
                         <CheckCircle2 size={20} className="text-emerald-400 shrink-0" />
                         <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-semibold">
-                                {CURRENCY_SYMBOL}{advanceAmount.toLocaleString("en-IN")} received
+                                {formatMajorAmount(advanceAmount, deal.currency)} received
                             </p>
                             <p className="text-white/50 text-xs mt-0.5">
                                 Paid {p3.advancePaidAt && new Date(p3.advancePaidAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
@@ -184,7 +185,7 @@ export default function IgnitionAdminView({ deal, adminEmail, onUpdated }: Props
                             <Hourglass size={20} className="text-amber-400 shrink-0" />
                             <div className="flex-1">
                                 <p className="text-white text-sm font-semibold">
-                                    Awaiting {CURRENCY_SYMBOL}{advanceAmount.toLocaleString("en-IN")} from {deal.name}
+                                    Awaiting {formatMajorAmount(advanceAmount, deal.currency)} from {deal.name}
                                 </p>
                                 <p className="text-white/50 text-xs mt-0.5">
                                     {advancePayment?.sessionId ? `Order ${advancePayment.sessionId} created — checkout pending.` : "Client hasn't initiated payment yet."}

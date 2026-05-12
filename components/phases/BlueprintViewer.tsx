@@ -13,7 +13,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, MessageCircleWarning, XCircle, IndianRupee, Calendar, Layers, Code2, ListChecks, FileText, ShieldCheck } from "lucide-react";
-import { CURRENCY_SYMBOL, BLUEPRINT_CHANGE_ROUNDS_MAX, PHASE_NAMES } from "@/lib/phases/constants";
+import { formatMajorAmount, BLUEPRINT_CHANGE_ROUNDS_MAX, PHASE_NAMES } from "@/lib/phases/constants";
 import type { Blueprint } from "@/lib/phases/schema";
 
 interface DealBare {
@@ -22,6 +22,7 @@ interface DealBare {
     company: string;
     phase: number;
     phaseData?: { phase2?: { blueprint?: Blueprint; changeRequestCount?: number } };
+    currency?: "INR" | "USD";
 }
 
 interface Props {
@@ -164,20 +165,20 @@ export default function BlueprintViewer({ deal, onUpdated, readOnly }: Props) {
                 </Section>
             )}
 
-            <Section icon={IndianRupee} title="Investment">
+            <Section icon={IndianRupee} title={`Investment · ${deal.currency || "INR"}`}>
                 <div className="space-y-1">
                     {bp.investment.map((l, i) => (
                         <div key={i} className="flex items-baseline justify-between py-2 border-b border-white/5">
                             <span className="text-white/75 text-sm">{l.label}</span>
                             <span className="font-mono text-white/85 text-sm">
-                                {CURRENCY_SYMBOL}{l.amount.toLocaleString("en-IN")}
+                                {formatMajorAmount(l.amount, deal.currency)}
                             </span>
                         </div>
                     ))}
                     <div className="flex items-baseline justify-between pt-3 mt-2 border-t-2 border-[#11B8EA]/30">
                         <span className="text-white text-sm tracking-[0.2em] uppercase font-bold">Total</span>
                         <span className="font-mono text-white text-2xl">
-                            {CURRENCY_SYMBOL}{bp.investmentTotal.toLocaleString("en-IN")}
+                            {formatMajorAmount(bp.investmentTotal, deal.currency)}
                         </span>
                     </div>
                 </div>
@@ -189,7 +190,7 @@ export default function BlueprintViewer({ deal, onUpdated, readOnly }: Props) {
                             <div key={i} className="flex items-baseline justify-between text-sm">
                                 <span className="text-white/85">{p.label} <span className="text-white/40">· Phase {p.phase}</span></span>
                                 <span className="font-mono text-white/85">
-                                    {p.percentage}% · {CURRENCY_SYMBOL}{Math.round((bp.investmentTotal * p.percentage) / 100).toLocaleString("en-IN")}
+                                    {p.percentage}% · {formatMajorAmount(Math.round((bp.investmentTotal * p.percentage) / 100), deal.currency)}
                                 </span>
                             </div>
                         ))}

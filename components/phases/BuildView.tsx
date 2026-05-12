@@ -16,7 +16,8 @@ import {
     GitBranch, Hourglass, MessageSquare, CheckCheck, X,
 } from "lucide-react";
 import RazorpayCheckout from "@/components/ui/RazorpayCheckout";
-import { CURRENCY_SYMBOL, paymentAmountFor, LARGE_PROJECT_THRESHOLD } from "@/lib/phases/constants";
+import StripeCheckout from "@/components/ui/StripeCheckout";
+import { paymentAmountFor, isLargeProject, formatMajorAmount } from "@/lib/phases/constants";
 import type { SprintReport, ChangeOrder } from "@/lib/phases/schema";
 
 interface DealBare {
@@ -44,7 +45,7 @@ export default function BuildView({ deal, onUpdated }: Props) {
     const changeOrders: ChangeOrder[] = p4.changeOrders || [];
     const stagingUrl: string = p4.stagingUrl || "";
 
-    const isLarge = (deal.totalPrice || 0) >= LARGE_PROJECT_THRESHOLD;
+    const isLarge = isLargeProject(deal.totalPrice || 0, deal.currency);
     const midAmount = deal.totalPrice ? paymentAmountFor(deal.totalPrice, 4) : 0;
     const midPayment = (deal.payments || []).find(p => p.phase === 4);
     const midPaid = !!midPayment && midPayment.status === "paid";
@@ -99,6 +100,7 @@ export default function BuildView({ deal, onUpdated }: Props) {
                                 token={deal.token}
                                 allOrders={changeOrders}
                                 onUpdated={onUpdated}
+                                currency={deal.currency}
                             />
                         ))}
                     </div>
@@ -114,20 +116,34 @@ export default function BuildView({ deal, onUpdated }: Props) {
                             Mid-project payment {midPaid && <span className="text-emerald-400 text-xs ml-2">· Received</span>}
                         </h2>
                     </div>
-                    <RazorpayCheckout
-                        token={deal.token}
-                        paymentPhase={4}
-                        amount={midAmount}
-                        currency={deal.currency}
-                        acceptInternationalCards={deal.acceptInternationalCards}
-                        clientCountry={deal.clientCountry}
-                        label="Mid-project milestone payment"
-                        description="Confirms direction is right. Unlocks the final delivery sprint."
-                        clientName={deal.name}
-                        isPaid={midPaid}
-                        paidAt={midPayment?.paidAt}
-                        onPaid={refreshDeal}
-                    />
+                    {deal.paymentProvider === "stripe" ? (
+                        <StripeCheckout
+                            token={deal.token}
+                            paymentPhase={4}
+                            amount={midAmount}
+                            label="Mid-project milestone payment"
+                            description="Confirms direction is right. Unlocks the final delivery sprint."
+                            clientName={deal.name}
+                            isPaid={midPaid}
+                            paidAt={midPayment?.paidAt}
+                            onPaid={refreshDeal}
+                        />
+                    ) : (
+                        <RazorpayCheckout
+                            token={deal.token}
+                            paymentPhase={4}
+                            amount={midAmount}
+                            currency={deal.currency}
+                            acceptInternationalCards={deal.acceptInternationalCards}
+                            clientCountry={deal.clientCountry}
+                            label="Mid-project milestone payment"
+                            description="Confirms direction is right. Unlocks the final delivery sprint."
+                            clientName={deal.name}
+                            isPaid={midPaid}
+                            paidAt={midPayment?.paidAt}
+                            onPaid={refreshDeal}
+                        />
+                    )}
                 </div>
             )}
 
@@ -313,9 +329,10 @@ function ReportSection({ label, items, accent }: { label: string; items: string[
 
 // ─── Change Order Decision (approve/decline) ────────────────────────────────
 
-function ChangeOrderDecision({ co, token, allOrders, onUpdated }: {
+function ChangeOrderDecision({ co, token, allOrders, onUpdated, currency }: {
     co: ChangeOrder; token: string; allOrders: ChangeOrder[];
     onUpdated: (deal: DealBare) => void;
+    currency?: "INR" | "USD";
 }) {
     const [note, setNote] = useState("");
     const [busy, setBusy] = useState(false);
@@ -361,7 +378,7 @@ function ChangeOrderDecision({ co, token, allOrders, onUpdated }: {
             <div className="grid grid-cols-3 gap-2">
                 <ImpactStat label="Scope" value={co.scopeImpact} />
                 <ImpactStat label="Timeline" value={`+${co.timelineImpactDays} days`} />
-                <ImpactStat label="Cost" value={`${CURRENCY_SYMBOL}${co.costImpact.toLocaleString("en-IN")}`} />
+                <ImpactStat label="Cost" value={formatMajorAmount(co.costImpact, currency)} />
             </div>
 
             <div>

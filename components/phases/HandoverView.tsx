@@ -12,7 +12,8 @@ import {
     CheckCircle2, Circle, Clock, Rocket, Package, ExternalLink, Lock, Download,
 } from "lucide-react";
 import RazorpayCheckout from "@/components/ui/RazorpayCheckout";
-import { CURRENCY_SYMBOL, paymentAmountFor } from "@/lib/phases/constants";
+import StripeCheckout from "@/components/ui/StripeCheckout";
+import { paymentAmountFor } from "@/lib/phases/constants";
 
 interface DealBare {
     token: string;
@@ -67,20 +68,34 @@ export default function HandoverView({ deal, onUpdated }: Props) {
 
             {/* Final payment */}
             <Section step={1} title="Pay final invoice" done={finalPaid}>
-                <RazorpayCheckout
-                    token={deal.token}
-                    paymentPhase={6}
-                    amount={finalInvoiceAmount}
-                    currency={deal.currency}
-                    acceptInternationalCards={deal.acceptInternationalCards}
-                    clientCountry={deal.clientCountry}
-                    label="Final 40% — unlock deploy + handover"
-                    description="Once we receive this, your build goes live in production and the full handover package is delivered."
-                    clientName={deal.name}
-                    isPaid={finalPaid}
-                    paidAt={finalPayment?.paidAt}
-                    onPaid={refreshDeal}
-                />
+                {deal.paymentProvider === "stripe" ? (
+                    <StripeCheckout
+                        token={deal.token}
+                        paymentPhase={6}
+                        amount={finalInvoiceAmount}
+                        label="Final 40% — unlock deploy + handover"
+                        description="Once we receive this, your build goes live in production and the full handover package is delivered."
+                        clientName={deal.name}
+                        isPaid={finalPaid}
+                        paidAt={finalPayment?.paidAt}
+                        onPaid={refreshDeal}
+                    />
+                ) : (
+                    <RazorpayCheckout
+                        token={deal.token}
+                        paymentPhase={6}
+                        amount={finalInvoiceAmount}
+                        currency={deal.currency}
+                        acceptInternationalCards={deal.acceptInternationalCards}
+                        clientCountry={deal.clientCountry}
+                        label="Final 40% — unlock deploy + handover"
+                        description="Once we receive this, your build goes live in production and the full handover package is delivered."
+                        clientName={deal.name}
+                        isPaid={finalPaid}
+                        paidAt={finalPayment?.paidAt}
+                        onPaid={refreshDeal}
+                    />
+                )}
             </Section>
 
             {/* Deploy status */}

@@ -13,7 +13,7 @@ import {
     CheckCircle2, Circle, AlertCircle, Rocket, Package, CreditCard,
     ExternalLink, FileText, Lock, Send,
 } from "lucide-react";
-import { CURRENCY_SYMBOL, HANDOVER_SUPPORT_DAYS } from "@/lib/phases/constants";
+import { HANDOVER_SUPPORT_DAYS, formatMajorAmount } from "@/lib/phases/constants";
 
 interface DealBare {
     token: string;
@@ -23,6 +23,7 @@ interface DealBare {
     totalPrice?: number;
     payments?: { phase: number; status: string; amount: number; paidAt?: number; sessionId?: string; orderId?: string }[];
     phaseData?: any;
+    currency?: "INR" | "USD";
 }
 
 interface Props {
@@ -65,7 +66,7 @@ export default function HandoverAdminView({ deal, adminEmail, onUpdated }: Props
                         <div>
                             <p className="text-[9px] tracking-[0.3em] uppercase text-white/40 mb-1">Amount due</p>
                             <p className="text-2xl font-bold text-white tabular-nums">
-                                {CURRENCY_SYMBOL}{finalInvoiceAmount.toLocaleString("en-IN")}
+                                {formatMajorAmount(finalInvoiceAmount, deal.currency)}
                             </p>
                             <p className="text-white/40 text-[10px] mt-0.5">
                                 40% remaining · auto-computed from total minus paid
