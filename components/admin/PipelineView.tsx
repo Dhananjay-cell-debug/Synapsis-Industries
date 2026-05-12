@@ -7,8 +7,8 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, IndianRupee, Clock, AlertCircle } from "lucide-react";
-import { PHASE_NAMES, PHASE_COLORS, GHOST_ALERT_DAYS, GHOST_WARNING_DAYS } from "@/lib/phases/constants";
+import { Building2, IndianRupee, DollarSign, Globe2, Clock, AlertCircle } from "lucide-react";
+import { PHASE_NAMES, PHASE_COLORS, GHOST_ALERT_DAYS, GHOST_WARNING_DAYS, formatMajorAmount, currencySymbolFor } from "@/lib/phases/constants";
 
 interface PipelineDeal {
     token: string;
@@ -20,6 +20,7 @@ interface PipelineDeal {
     payments?: { phase: number; status: string; amount: number }[];
     lastInteractionAt?: number;
     createdAt: number;
+    currency?: "INR" | "USD";
 }
 
 interface Props {
@@ -121,7 +122,14 @@ function DealCard({ deal, accent, onOpen }: { deal: PipelineDeal; accent: string
 
             <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{deal.name}</p>
+                    <div className="flex items-center gap-1.5">
+                        <p className="text-white text-sm font-medium truncate">{deal.name}</p>
+                        {deal.currency === "USD" && (
+                            <span className="shrink-0 inline-flex items-center px-1 py-px rounded text-[8px] tracking-wider uppercase font-bold" style={{ background: "rgba(59,106,232,0.15)", color: "#3B6AE8", border: "1px solid rgba(59,106,232,0.3)" }} title="International deal · USD via Razorpay International">
+                                <Globe2 size={8} className="mr-0.5" /> USD
+                            </span>
+                        )}
+                    </div>
                     <p className="text-white/40 text-[11px] truncate flex items-center gap-1">
                         <Building2 size={10} /> {deal.company}
                     </p>
@@ -137,7 +145,8 @@ function DealCard({ deal, accent, onOpen }: { deal: PipelineDeal; accent: string
                 <div className="mt-2">
                     <div className="flex items-center justify-between mb-1">
                         <span className="flex items-center gap-1 text-[10px] text-white/50 font-mono">
-                            <IndianRupee size={9} /> {deal.totalPrice.toLocaleString("en-IN")}
+                            {deal.currency === "USD" ? <DollarSign size={9} /> : <IndianRupee size={9} />}
+                            {formatMajorAmount(deal.totalPrice, deal.currency).slice(1)}
                         </span>
                         <span className="text-[9px] text-white/30 tracking-wider uppercase font-mono">
                             {collectedPct}% paid

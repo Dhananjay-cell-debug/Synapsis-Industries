@@ -241,15 +241,17 @@ export async function renderInvoicePdf(args: RenderArgs): Promise<Buffer> {
     drawText(ctx, "INVOICE DETAILS", 320, y, { size: 8, bold: true, color: colors.muted });
     y -= 18;
 
+    const dateLocale = isUSD ? "en-US" : "en-IN";
+
     drawText(ctx, SYNAPSIS_CONFIG.legalName, 40, y, { size: 11, bold: true });
     drawText(ctx, "Issue Date:", 320, y, { size: 9, color: colors.muted });
-    drawText(ctx, new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }), 400, y, { size: 9 });
+    drawText(ctx, new Date().toLocaleDateString(dateLocale, { day: "2-digit", month: "short", year: "numeric" }), 400, y, { size: 9 });
     y -= 14;
 
     drawText(ctx, SYNAPSIS_CONFIG.proprietorshipLine, 40, y, { size: 9, color: colors.muted });
     if (args.payment.paidAt) {
         drawText(ctx, "Payment Date:", 320, y, { size: 9, color: colors.muted });
-        drawText(ctx, new Date(args.payment.paidAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }), 400, y, { size: 9 });
+        drawText(ctx, new Date(args.payment.paidAt).toLocaleDateString(dateLocale, { day: "2-digit", month: "short", year: "numeric" }), 400, y, { size: 9 });
     }
     y -= 14;
 

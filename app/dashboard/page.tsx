@@ -145,6 +145,10 @@ interface Deal {
     questionnaireSubmittedAt?: number;
     messages?: DealMessage[];
     totalPrice?: number;
+    currency?: "INR" | "USD";
+    paymentProvider?: "razorpay" | "stripe";
+    acceptInternationalCards?: boolean;
+    clientCountry?: string;
     payments?: { phase: number; percentage: number; amount: number; status: "pending" | "paid"; paidAt?: number }[];
     projectDays?: number;
     customQuestions?: string[];
@@ -2524,8 +2528,19 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                 </button>
                 <div className="w-px h-5 bg-white/8" />
                 <div>
-                    <p className="font-serif text-xl text-white leading-tight">{deal.name}</p>
-                    <p className="text-white/35 text-xs">{deal.company} · {deal.need}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-serif text-xl text-white leading-tight">{deal.name}</p>
+                        {deal.currency === "USD" ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-widest uppercase" style={{ background: "rgba(59,106,232,0.12)", border: "1px solid rgba(59,106,232,0.35)", color: "#3B6AE8" }}>
+                                🌐 USD · International
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-widest uppercase" style={{ background: "rgba(17,184,234,0.08)", border: "1px solid rgba(17,184,234,0.25)", color: "#11B8EA" }}>
+                                🇮🇳 INR · Domestic
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-white/35 text-xs mt-0.5">{deal.company} · {deal.need}</p>
                 </div>
                 {/* Journey map */}
                 <div className="ml-auto flex items-center gap-0">

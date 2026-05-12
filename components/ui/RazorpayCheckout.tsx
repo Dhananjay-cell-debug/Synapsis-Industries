@@ -67,10 +67,10 @@ function classifyInternationalTier(amount: number): InternationalTier {
 }
 
 const INTERNATIONAL_HINTS: Record<InternationalTier, string> = {
-    1: "International cards should be the default. Local methods can appear region-wise.",
-    2: "Cards, Trustly, Giropay and Sofort may surface when Razorpay has them enabled.",
-    3: "ACH, SEPA, CHAPS or SWIFT style bank-transfer rails may be preferable for larger amounts.",
-    4: "For enterprise-size payments, buyers usually choose the bank-transfer options shown by Razorpay.",
+    1: "International cards work everywhere. Local methods auto-surface based on your region.",
+    2: "Cards, Trustly, GiroPay and Sofort are available — Razorpay shows what fits your region.",
+    3: "ACH (US), SEPA (EU), CHAPS (UK), SWIFT — bank-transfer rails active for larger amounts.",
+    4: "Wire transfer and SWIFT recommended for this ticket — Razorpay surfaces them automatically.",
 };
 
 function loadRazorpaySdk(): Promise<boolean> {
@@ -278,8 +278,8 @@ export default function RazorpayCheckout({
                         <div className="mt-1 text-sm text-white/50">{description}</div>
                         {isInternational && (
                             <div className="mt-2 text-[11px] leading-relaxed text-white/35">
-                                Razorpay International is the active rail here.
-                                {acceptInternationalCards ? " Cards are expected to be live for this deal." : ""}
+                                Razorpay International is the active rail.
+                                {acceptInternationalCards ? " Cards, ACH, SEPA, CHAPS, SWIFT, Trustly, GiroPay and Sofort are live on this merchant." : ""}
                                 {clientCountry ? ` Buyer region: ${clientCountry}.` : ""}
                             </div>
                         )}
@@ -319,8 +319,8 @@ export default function RazorpayCheckout({
 
                 {isInternational ? (
                     <div className="mt-3 text-center text-[11px] leading-relaxed text-white/30">
-                        International cards should work immediately. ACH, SEPA, CHAPS, SWIFT, Trustly, Giropay and Sofort
-                        depend on Razorpay account activation and buyer geography.
+                        International cards work immediately. ACH, SEPA, CHAPS, SWIFT, Trustly, GiroPay and Sofort surface
+                        automatically based on your region.
                     </div>
                 ) : domesticHint.recommendNeft ? (
                     <button
