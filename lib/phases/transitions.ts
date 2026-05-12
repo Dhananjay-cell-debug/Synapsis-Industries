@@ -635,7 +635,57 @@ export function forcePhaseJump(
         phaseBefore: deal.phase, phaseAfter: ctx.toPhase,
         note: ctx.note,
     });
-    const d = bump({ ...deal, phase: ctx.toPhase }, audit);
+
+    // Build the jumped deal with proper phase-data skeletons + status flags so
+    // the client portal renders the new phase correctly (no orphan "stuck on
+    // questionnaire" state when admin jumps from 1 → 2 directly).
+    let d: Deal = { ...deal, phase: ctx.toPhase };
+
+    if (ctx.toPhase >= 1) {
+        d = {
+            ...d,
+            status: d.status === "pending" || d.status === "interested" ? "elected" : d.status,
+            electedAt: d.electedAt ?? now(),
+        };
+        d = setPhaseData(d, "phase1", {
+            startedAt: (d.phaseData?.phase1?.startedAt) ?? now(),
+            levelTab: d.phaseData?.phase1?.levelTab ?? "overview",
+        });
+    }
+    if (ctx.toPhase >= 2) {
+        d = setPhaseData(d, "phase2", {
+            startedAt: (d.phaseData?.phase2?.startedAt) ?? now(),
+            levelTab: d.phaseData?.phase2?.levelTab ?? "overview",
+            changeRequestCount: d.phaseData?.phase2?.changeRequestCount ?? 0,
+        });
+    }
+    if (ctx.toPhase >= 3) {
+        d = setPhaseData(d, "phase3", {
+            startedAt: (d.phaseData?.phase3?.startedAt) ?? now(),
+        } as any);
+    }
+    if (ctx.toPhase >= 4) {
+        d = setPhaseData(d, "phase4", {
+            startedAt: (d.phaseData?.phase4?.startedAt) ?? now(),
+        } as any);
+    }
+    if (ctx.toPhase >= 5) {
+        d = setPhaseData(d, "phase5", {
+            startedAt: (d.phaseData?.phase5?.startedAt) ?? now(),
+        } as any);
+    }
+    if (ctx.toPhase >= 6) {
+        d = setPhaseData(d, "phase6", {
+            startedAt: (d.phaseData?.phase6?.startedAt) ?? now(),
+        } as any);
+    }
+    if (ctx.toPhase >= 7) {
+        d = setPhaseData(d, "phase7", {
+            startedAt: (d.phaseData?.phase7?.startedAt) ?? now(),
+        } as any);
+    }
+
+    d = bump(d, audit);
     return { ok: true, deal: d, audit };
 }
 

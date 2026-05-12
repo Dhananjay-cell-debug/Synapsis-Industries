@@ -22,6 +22,10 @@ interface DealBare {
     totalPrice?: number;
     payments?: { phase: number; status: string; amount: number; paidAt?: number; sessionId?: string; orderId?: string }[];
     phaseData?: any;
+    currency?: "INR" | "USD";
+    paymentProvider?: "razorpay" | "stripe";
+    acceptInternationalCards?: boolean;
+    clientCountry?: string;
 }
 
 interface Props {
@@ -67,6 +71,9 @@ export default function HandoverView({ deal, onUpdated }: Props) {
                     token={deal.token}
                     paymentPhase={6}
                     amount={finalInvoiceAmount}
+                    currency={deal.currency}
+                    acceptInternationalCards={deal.acceptInternationalCards}
+                    clientCountry={deal.clientCountry}
                     label="Final 40% — unlock deploy + handover"
                     description="Once we receive this, your build goes live in production and the full handover package is delivered."
                     clientName={deal.name}

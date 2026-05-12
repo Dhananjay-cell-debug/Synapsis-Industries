@@ -166,6 +166,7 @@ export async function generateAndPersistInvoice(args: GenerateInvoiceArgs) {
         paymentId: args.paymentId,
         phase: payment.phase,
         amountPaise: payment.amount_paise,
+        currency,
         issuedToName: deal.name,
         issuedToCompany: deal.company,
         issuedToEmail: undefined,                  // V2: collect from questionnaire/onboarding
@@ -261,6 +262,7 @@ export async function renderInvoicePdf(args: RenderArgs): Promise<Buffer> {
     const methodLabel =
         args.payment.method === "manual_neft" ? "NEFT/RTGS" :
         args.payment.method === "stripe"      ? "Stripe (International)" :
+        args.payment.method === "razorpay" && isUSD ? "Razorpay (International)" :
         args.payment.method === "razorpay"    ? "Razorpay (Online)" :
         "Manual";
     drawText(ctx, methodLabel, 400, y, { size: 9 });
@@ -373,12 +375,19 @@ export async function renderInvoicePdf(args: RenderArgs): Promise<Buffer> {
     }
 
     // ─── BANK / PAYMENT INSTRUCTIONS ───────────────────────────────────────
-    if (isUSD) {
+    if (isUSD && args.payment.provider === "stripe") {
         drawRect(page, 40, y - 60, 515, 60, hexToRgb("#F8FAFC"));
         drawText(ctx, "PAID VIA STRIPE (International)", 50, y - 12, { size: 8, bold: true, color: colors.muted });
         drawText(ctx, "All major cards · ACH (US) · SEPA (EU) · Apple/Google Pay · Link", 50, y - 28, { size: 9, color: colors.text });
         drawText(ctx, "For wire transfer or invoicing inquiries: " + SYNAPSIS_CONFIG.contact.email, 50, y - 42, { size: 9, color: colors.text });
         y -= 80;
+    } else if (isUSD) {
+        drawRect(page, 40, y - 72, 515, 72, hexToRgb("#F8FAFC"));
+        drawText(ctx, "PAID VIA RAZORPAY INTERNATIONAL", 50, y - 12, { size: 8, bold: true, color: colors.muted });
+        drawText(ctx, "International cards are supported directly on checkout.", 50, y - 28, { size: 9, color: colors.text });
+        drawText(ctx, "ACH, SEPA, CHAPS, SWIFT, Trustly, Giropay and Sofort depend on Razorpay activation and buyer region.", 50, y - 42, { size: 9, color: colors.text });
+        drawText(ctx, "Settlement is handled by Razorpay to Synapsis Industries in India.", 50, y - 56, { size: 9, color: colors.text });
+        y -= 92;
     } else {
         drawRect(page, 40, y - 80, 515, 80, hexToRgb("#F8FAFC"));
         drawText(ctx, "PAY TO (NEFT / RTGS reference)", 50, y - 12, { size: 8, bold: true, color: colors.muted });

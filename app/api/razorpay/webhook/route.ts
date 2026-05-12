@@ -15,7 +15,7 @@
 //   Secret: RAZORPAY_WEBHOOK_SECRET (env)
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifyWebhookSignature, paiseToRupees } from "@/lib/razorpay";
+import { verifyWebhookSignature } from "@/lib/razorpay";
 import {
     t3_advancePaid,
     t4_midPaymentPaid,
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Sync legacy deal.payments[]
-    const legacyAmount = paiseToRupees(paymentRow.amount_paise);
+    const legacyAmount = Math.round(paymentRow.amount_paise) / (paymentRow.minor_per_major || 100);
     const legacyPayments = (result.deal.payments || []).map(p =>
         p.phase === phase
             ? { ...p, status: "paid" as const, sessionId: orderId, paidAt: Date.now(), amount: legacyAmount }
@@ -231,6 +231,7 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    console.log(`[webhook] ✅ phase=${phase} deal=${token} amount=₹${legacyAmount}`);
+    const currencySymbol = paymentRow.currency === "USD" ? "$" : "₹";
+    console.log(`[webhook] ✅ phase=${phase} deal=${token} amount=${currencySymbol}${legacyAmount} (${paymentRow.currency})`);
     return ack("captured", { phase, paymentId: paymentRow.id });
 }

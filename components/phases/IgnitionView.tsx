@@ -26,6 +26,10 @@ interface DealBare {
     totalPrice?: number;
     payments?: { phase: number; status: string; amount: number; paidAt?: number }[];
     phaseData?: any;
+    currency?: "INR" | "USD";
+    paymentProvider?: "razorpay" | "stripe";
+    acceptInternationalCards?: boolean;
+    clientCountry?: string;
 }
 
 interface Props {
@@ -71,6 +75,9 @@ export default function IgnitionView({ deal, onUpdated }: Props) {
                     token={deal.token}
                     paymentPhase={3}
                     amount={advanceAmount}
+                    currency={deal.currency}
+                    acceptInternationalCards={deal.acceptInternationalCards}
+                    clientCountry={deal.clientCountry}
                     label="Advance — kicks off the build"
                     description="Locks your slot, unlocks asset submission, and triggers Phase 4 once your materials land."
                     clientName={deal.name}

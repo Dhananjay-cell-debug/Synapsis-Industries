@@ -25,8 +25,9 @@ const formatUSD = (cents: number): string =>
 const formatMoney = (minor: number, currency: string): string =>
     currency === "USD" ? formatUSD(minor) : formatINR(minor);
 
-const methodLabel = (method: string | null, provider: string | null): string => {
+const methodLabel = (method: string | null, provider: string | null, currency: string): string => {
     if (method === "stripe" || provider === "stripe") return "Stripe (International)";
+    if (method === "razorpay" && currency === "USD") return "Razorpay (International)";
     if (method === "manual_neft") return "Manual NEFT/RTGS";
     if (method === "razorpay") return "Razorpay";
     if (method === "admin_marked") return "Admin-marked";
@@ -126,7 +127,7 @@ export async function sendPaymentVerifiedEmails(args: PaymentEmailArgs): Promise
     const currency: string = payment.currency || "INR";
     const amountMinor = payment.amount_minor ?? payment.amount_paise ?? 0;
     const amountStr = formatMoney(amountMinor, currency);
-    const paymentMethodStr = methodLabel(payment.method, payment.provider);
+    const paymentMethodStr = methodLabel(payment.method, payment.provider, currency);
     const paymentRefId = payment.razorpay_payment_id || payment.stripe_payment_intent_id || "";
     const paymentRefLabel = payment.razorpay_payment_id ? "Razorpay Payment ID"
                           : payment.stripe_payment_intent_id ? "Stripe Payment Intent ID"

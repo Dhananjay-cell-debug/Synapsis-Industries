@@ -27,6 +27,10 @@ interface DealBare {
     totalPrice?: number;
     payments?: { phase: number; status: string; amount: number; paidAt?: number }[];
     phaseData?: any;
+    currency?: "INR" | "USD";
+    paymentProvider?: "razorpay" | "stripe";
+    acceptInternationalCards?: boolean;
+    clientCountry?: string;
 }
 
 interface Props {
@@ -114,6 +118,9 @@ export default function BuildView({ deal, onUpdated }: Props) {
                         token={deal.token}
                         paymentPhase={4}
                         amount={midAmount}
+                        currency={deal.currency}
+                        acceptInternationalCards={deal.acceptInternationalCards}
+                        clientCountry={deal.clientCountry}
                         label="Mid-project milestone payment"
                         description="Confirms direction is right. Unlocks the final delivery sprint."
                         clientName={deal.name}

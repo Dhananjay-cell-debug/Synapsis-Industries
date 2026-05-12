@@ -9,7 +9,8 @@ import { signOut, useSession } from "next-auth/react";
 import {
     ArrowRight, Clock, CheckCircle, XCircle, AlertCircle,
     LayoutDashboard, Map, FileQuestion, MessageSquare, Layers, Rocket, Hammer, Sparkles, Package,
-    Send, LogOut, ChevronRight, Zap, Target, Users, HelpCircle, Lock
+    Send, LogOut, ChevronRight, Zap, Target, Users, HelpCircle, Lock,
+    ListChecks, IndianRupee
 } from "lucide-react";
 import PaymentGate from "@/components/ui/PaymentGate";
 import BlueprintViewer from "@/components/phases/BlueprintViewer";
@@ -243,9 +244,12 @@ function Countdown({ expiryTime }: { expiryTime: string }) {
 
 // ─── Tab Content ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ deal, onQuestionnaireClick, onProcessClick, onUnlock, unlocked }: { deal: Deal; onQuestionnaireClick: () => void; onProcessClick: () => void; onUnlock: () => void; unlocked: boolean }) {
+function OverviewTab({ deal, onQuestionnaireClick, onProcessClick, onUnlock, unlocked, onBlueprintClick }: { deal: Deal; onQuestionnaireClick: () => void; onProcessClick: () => void; onUnlock: () => void; unlocked: boolean; onBlueprintClick?: () => void }) {
     const complexityRows = useMemo(() => getComplexityProfile(deal.need), [deal.need]);
     const isQuestionnaireSubmitted = !!deal.questionnaire;
+    const phase = deal.phase ?? 1;
+    const blueprint = deal.phaseData?.phase2?.blueprint;
+    const blueprintSent = phase >= 2 && (blueprint?.status === "sent" || blueprint?.status === "changes_requested");
 
     return (
         <div className="flex flex-col gap-6">
@@ -283,56 +287,109 @@ function OverviewTab({ deal, onQuestionnaireClick, onProcessClick, onUnlock, unl
                 </div>
             </motion.div>
 
-            {/* Card 2 — What you will know (Glassmorphic Dark) */}
+            {/* Card 2 — Active Milestone (phase-aware) ─────────────────────── */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
                 className="relative rounded-[2rem] p-10 overflow-hidden min-h-[360px] flex flex-col justify-between"
                 style={{ background: "rgba(8,12,26,0.95)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                {/* Blue leak — top left */}
                 <div className="absolute -top-24 -left-24 w-[55%] h-[130%] rounded-full pointer-events-none"
                     style={{ background: "#11B8EA", filter: "blur(80px)", willChange: "transform", animation: "blobFloat 10s ease-in-out infinite" }} />
-                {/* Green leak — bottom right */}
                 <div className="absolute -bottom-24 -right-24 w-[55%] h-[130%] rounded-full pointer-events-none"
-                    style={{ background: "#10b981", filter: "blur(80px)", willChange: "transform", animation: "blobFloat2 12s ease-in-out infinite" }} />
-                {/* Glass shine */}
+                    style={{ background: phase >= 2 ? "#3B6AE8" : "#10b981", filter: "blur(80px)", willChange: "transform", animation: "blobFloat2 12s ease-in-out infinite" }} />
                 <div className="absolute inset-0 rounded-[2rem] pointer-events-none"
                     style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 50%)", borderTop: "1px solid rgba(255,255,255,0.1)" }} />
 
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
-                            <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-white/90">Phase 01</span>
+                            <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-white/90">
+                                Phase {String(phase).padStart(2, "0")}
+                            </span>
                         </div>
                         <div className="h-px w-12 bg-white/20" />
                         <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-white/40">Active Milestone</span>
                     </div>
 
-                    <h1 className="font-serif text-6xl text-white leading-tight mb-8">
-                        Strategic Discovery.
-                    </h1>
-
-                    <div className="max-w-xl">
-                        <p className="text-xl text-white/70 leading-relaxed mb-10">
-                            We will cover how we gonna proceed throughout our whole project, here&apos;s what you will know in this phase:
-                        </p>
-                        <div className="grid grid-cols-1 gap-5">
-                            {[
-                                { icon: <Target className="text-[#11B8EA]" size={18} />, text: "Blueprint of how we gonna proceed throughout the architecture." },
-                                { icon: <Clock className="text-[#10b981]" size={18} />, text: "A clear breakdown of every phase — what happens, in what order, and why." },
-                                { icon: <Users className="text-[#11B8EA]" size={18} />, text: "Opportunities to get to know each other better and align visions." },
-                                { icon: <HelpCircle className="text-[#10b981]" size={18} />, text: "Some really important questions to clear the operational fog." },
-                                { icon: <Zap className="text-[#11B8EA]" size={18} />, text: "Immediate technical next moves and asset requirements." },
-                            ].map((step, i) => (
-                                <div
-                                    key={i}
-                                    className="flex items-center gap-4 group/item">
-                                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover/item:border-white/20 transition-colors">
-                                        {step.icon}
-                                    </div>
-                                    <span className="text-sm text-white/60 group-hover/item:text-white/90 transition-colors">{step.text}</span>
+                    {phase === 1 && (
+                        <>
+                            <h1 className="font-serif text-6xl text-white leading-tight mb-8">Strategic Discovery.</h1>
+                            <div className="max-w-xl">
+                                <p className="text-xl text-white/70 leading-relaxed mb-10">
+                                    We will cover how we gonna proceed throughout our whole project, here&apos;s what you will know in this phase:
+                                </p>
+                                <div className="grid grid-cols-1 gap-5">
+                                    {[
+                                        { icon: <Target className="text-[#11B8EA]" size={18} />, text: "Blueprint of how we gonna proceed throughout the architecture." },
+                                        { icon: <Clock className="text-[#10b981]" size={18} />, text: "A clear breakdown of every phase — what happens, in what order, and why." },
+                                        { icon: <Users className="text-[#11B8EA]" size={18} />, text: "Opportunities to get to know each other better and align visions." },
+                                        { icon: <HelpCircle className="text-[#10b981]" size={18} />, text: "Some really important questions to clear the operational fog." },
+                                        { icon: <Zap className="text-[#11B8EA]" size={18} />, text: "Immediate technical next moves and asset requirements." },
+                                    ].map((step, i) => (
+                                        <div key={i} className="flex items-center gap-4 group/item">
+                                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover/item:border-white/20 transition-colors">
+                                                {step.icon}
+                                            </div>
+                                            <span className="text-sm text-white/60 group-hover/item:text-white/90 transition-colors">{step.text}</span>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            </div>
+                        </>
+                    )}
+
+                    {phase === 2 && (
+                        <>
+                            <h1 className="font-serif text-6xl text-white leading-tight mb-4">
+                                {blueprintSent ? "Blueprint ready." : "Architecture in motion."}
+                            </h1>
+                            <p className="text-xl text-white/70 leading-relaxed mb-8 max-w-xl">
+                                {blueprintSent
+                                    ? "Your System Blueprint is live. Review the architecture, scope, timeline, and investment — then approve, request changes, or decline."
+                                    : "Your requirements are captured. We're now drafting your System Blueprint — problem statement, solution architecture, scope, tech stack, timeline, and investment breakdown. Typically lands in 48–72 hours."}
+                            </p>
+
+                            {blueprintSent ? (
+                                <button
+                                    onClick={onBlueprintClick}
+                                    className="flex items-center gap-3 px-7 py-3.5 rounded-2xl text-white font-black text-xs uppercase tracking-[0.3em] transition-all shadow-[0_16px_40px_rgba(17,184,234,0.35)]"
+                                    style={{ background: "linear-gradient(135deg, #11B8EA, #3B6AE8)" }}
+                                >
+                                    Open Blueprint <ArrowRight size={15} />
+                                </button>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4 max-w-xl">
+                                    {[
+                                        { icon: <FileQuestion className="text-[#11B8EA]" size={18} />, text: "Problem statement — proof we understood the gap." },
+                                        { icon: <Layers className="text-[#3B6AE8]" size={18} />, text: "Solution architecture — how the system fits together." },
+                                        { icon: <ListChecks className="text-[#11B8EA]" size={18} />, text: "Scope: what's in, what's explicitly out." },
+                                        { icon: <Clock className="text-[#3B6AE8]" size={18} />, text: "Timeline broken into sprints, not just dates." },
+                                        { icon: <IndianRupee className="text-[#11B8EA]" size={18} />, text: "Investment breakdown + advance / milestone / final %." },
+                                    ].map((step, i) => (
+                                        <div key={i} className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                                {step.icon}
+                                            </div>
+                                            <span className="text-sm text-white/60">{step.text}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {phase >= 3 && (
+                        <>
+                            <h1 className="font-serif text-6xl text-white leading-tight mb-4">
+                                {phase === 3 ? "Ignition." : phase === 4 ? "Build in progress." : phase === 5 ? "Final delivery." : phase === 6 ? "Handover." : "Orbit."}
+                            </h1>
+                            <p className="text-xl text-white/70 leading-relaxed max-w-xl">
+                                {phase === 3 && "Two steps to unlock the build — 30% advance and project assets. Open the Ignition tab to proceed."}
+                                {phase === 4 && "Sprints are running. Check the Build tab for weekly reports and progress."}
+                                {phase === 5 && "Final review — staging URL is live in the Deliver tab. Approve or request revisions."}
+                                {phase === 6 && "Final payment + handover packet in the Handover tab."}
+                                {phase === 7 && "You're in orbit — long-term checkpoints in the Orbit tab."}
+                            </p>
+                        </>
+                    )}
                 </div>
             </motion.div>
 
@@ -416,8 +473,8 @@ function OverviewTab({ deal, onQuestionnaireClick, onProcessClick, onUnlock, unl
                 </div>
             </motion.div>
 
-            {/* ─── Unlock Gate ─── */}
-            {!unlocked && (
+            {/* ─── Unlock Gate (phase 1 only — process flow belongs to discovery) ─── */}
+            {!unlocked && phase === 1 && (
                 <div className="rounded-2xl p-8 flex flex-col items-center text-center gap-5"
                     style={{ background: "#0D1526", border: "1px solid rgba(17,184,234,0.15)" }}>
                     <div>
@@ -449,6 +506,8 @@ function OverviewTab({ deal, onQuestionnaireClick, onProcessClick, onUnlock, unl
                         clientName={deal.name}
                         paymentProvider={deal.paymentProvider}
                         currency={deal.currency}
+                        acceptInternationalCards={deal.acceptInternationalCards}
+                        clientCountry={deal.clientCountry}
                         label={
                             deal.phase === 3 ? "Advance payment to initiate the build" :
                             deal.phase === 4 ? "Milestone payment — mid-project checkpoint" :
@@ -1051,28 +1110,32 @@ function QuestionnaireTab({ deal, onSubmit, onEnterWorkspace }: { deal: Deal; on
                         </div>
                                         <h1 className="font-serif text-6xl text-[#0A0F1E] leading-tight mb-4">Strategic data locked.</h1>
                         <p className="text-xl text-black/50 leading-relaxed max-w-md mb-8">Your requirements are captured. Time to enter the workspace.</p>
-                        {deal.phase <= 1 && (
-                            <motion.button
-                                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                                onClick={async () => {
-                                    setEnteringWorkspace(true);
-                                    try {
-                                        const res = await fetch(`/api/deals/${deal.token}/enter-workspace`, { method: "POST" });
-                                        if (res.ok) {
-                                            const updated = await res.json();
-                                            onEnterWorkspace(updated);
-                                        }
-                                    } catch { /* silent — user can retry */ } finally {
-                                        setEnteringWorkspace(false);
+                        <motion.button
+                            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                            onClick={async () => {
+                                // If phase already advanced (admin elected directly),
+                                // just route into the workspace — no API call needed.
+                                if (deal.phase >= 2) {
+                                    onEnterWorkspace(deal);
+                                    return;
+                                }
+                                setEnteringWorkspace(true);
+                                try {
+                                    const res = await fetch(`/api/deals/${deal.token}/enter-workspace`, { method: "POST" });
+                                    if (res.ok) {
+                                        const updated = await res.json();
+                                        onEnterWorkspace(updated);
                                     }
-                                }}
-                                disabled={enteringWorkspace}
-                                className="flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-black text-sm uppercase tracking-[0.3em] disabled:opacity-50 transition-all shadow-[0_16px_40px_rgba(17,184,234,0.35)]"
-                                style={{ background: "linear-gradient(135deg, #11B8EA, #3B6AE8)" }}
-                            >
-                                {enteringWorkspace ? "Opening…" : "Enter Workspace →"}
-                            </motion.button>
-                        )}
+                                } catch { /* silent — user can retry */ } finally {
+                                    setEnteringWorkspace(false);
+                                }
+                            }}
+                            disabled={enteringWorkspace}
+                            className="flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-black text-sm uppercase tracking-[0.3em] disabled:opacity-50 transition-all shadow-[0_16px_40px_rgba(17,184,234,0.35)]"
+                            style={{ background: "linear-gradient(135deg, #11B8EA, #3B6AE8)" }}
+                        >
+                            {enteringWorkspace ? "Opening…" : "Enter Workspace →"}
+                        </motion.button>
                     </div>
                 </motion.div>
                 <div className="flex flex-col gap-4 mt-2">
@@ -1488,10 +1551,12 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
     );
     const { token } = useParams();
 
-    // If already on phase 2+ and stuck on questionnaire, kick to overview immediately
+    // If admin advanced phase to 2+ while user is sitting on questionnaire,
+    // route them to the workspace on the next phase change. Single-shot —
+    // user can still revisit questionnaire to view their submitted answers.
     useEffect(() => {
         if (phase >= 2 && activeTab === "questionnaire") {
-            setActiveTab("overview");
+            setActiveTab(blueprintAvailable ? "blueprint" : "overview");
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [phase]);
@@ -1704,7 +1769,7 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.22 }}
                         >
-                            {activeTab === "overview" && <OverviewTab deal={deal} onQuestionnaireClick={() => setActiveTab("questionnaire")} onProcessClick={() => setActiveTab("process")} onUnlock={handleUnlock} unlocked={false} />}
+                            {activeTab === "overview" && <OverviewTab deal={deal} onQuestionnaireClick={() => setActiveTab("questionnaire")} onProcessClick={() => setActiveTab("process")} onUnlock={handleUnlock} unlocked={false} onBlueprintClick={() => setActiveTab("blueprint")} />}
                             {activeTab === "process" && <ProcessTab deal={deal} onQuestionnaireUnlock={handleQuestionnaireUnlock} />}
                             {activeTab === "questionnaire" && <QuestionnaireTab deal={deal} onSubmit={handleQuestionnaireSubmit} onEnterWorkspace={(updated) => { onStatusUpdate(updated); setActiveTab("overview"); }} />}
                             {activeTab === "chat" && <ChatTab deal={deal} onSend={handleSendMessage} />}

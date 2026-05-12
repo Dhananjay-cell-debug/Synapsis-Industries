@@ -15,6 +15,7 @@ import {
 import CommandView from "@/components/admin/CommandView";
 import PipelineView from "@/components/admin/PipelineView";
 import NotificationCenter from "@/components/admin/NotificationCenter";
+import PaymentProfileEditor from "@/components/admin/PaymentProfileEditor";
 import BlueprintBuilder from "@/components/phases/BlueprintBuilder";
 import IgnitionAdminView from "@/components/phases/IgnitionAdminView";
 import BuildAdminView from "@/components/phases/BuildAdminView";
@@ -3110,6 +3111,12 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                                 </div>
                             </div>
                         </button>
+
+                        {/* Payment profile (domestic INR vs international USD) */}
+                        <PaymentProfileEditor
+                            deal={deal}
+                            onSaved={(updates) => setDeal(d => ({ ...d, ...updates }))}
+                        />
 
                         {/* Deal meta */}
                         <div className="mt-auto pt-4 border-t border-white/6">

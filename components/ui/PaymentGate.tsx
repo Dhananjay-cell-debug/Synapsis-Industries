@@ -1,12 +1,9 @@
 "use client";
 
-// ─── PAYMENT GATE — provider router (Razorpay INR / Stripe USD / Razorpay International) ─
-// Reads deal.paymentProvider + deal.currency to decide which checkout to render.
-// Defaults: provider='razorpay', currency='INR' (back-compat with existing deals).
-
 import React from "react";
 import RazorpayCheckout from "./RazorpayCheckout";
 import StripeCheckout from "./StripeCheckout";
+import { resolveRazorpayCurrency } from "@/lib/payments/currency";
 
 interface Payment {
     phase: number;
@@ -25,8 +22,10 @@ interface PaymentGateProps {
     description: string;
     clientName?: string;
     clientEmail?: string;
-    paymentProvider?: "razorpay" | "stripe";    // default 'razorpay'
-    currency?: "INR" | "USD";                   // default 'INR'
+    paymentProvider?: "razorpay" | "stripe";
+    currency?: "INR" | "USD";
+    acceptInternationalCards?: boolean;
+    clientCountry?: string;
 }
 
 const PHASE_PERCENTAGE: Record<3 | 4 | 6, number> = { 3: 30, 4: 30, 6: 40 };
@@ -42,18 +41,20 @@ export default function PaymentGate({
     clientEmail,
     paymentProvider = "razorpay",
     currency = "INR",
+    acceptInternationalCards = false,
+    clientCountry,
 }: PaymentGateProps) {
     const percentage = PHASE_PERCENTAGE[paymentPhase];
     const amount = Math.round((totalPrice * percentage) / 100);
-    const existing = payments.find((p) => p.phase === paymentPhase);
+    const existing = payments.find((payment) => payment.phase === paymentPhase);
     const isPaid = existing?.status === "paid";
+    const resolvedCurrency = resolveRazorpayCurrency({
+        currency,
+        acceptInternationalCards,
+        clientCountry,
+    });
 
-    // Provider routing — Stripe ONLY when explicitly set as provider.
-    // Razorpay handles INR (domestic) AND foreign cards when International is enabled in dashboard.
     if (paymentProvider === "stripe") {
-        // Sanity: Stripe path expects USD pricing on the deal
-        void currency;
-
         return (
             <StripeCheckout
                 token={token}
@@ -70,16 +71,18 @@ export default function PaymentGate({
         );
     }
 
-    // Default: Razorpay (INR or international cards via Razorpay if enabled in dashboard)
     return (
         <RazorpayCheckout
             token={token}
             paymentPhase={paymentPhase}
             amount={amount}
+            currency={resolvedCurrency}
             label={label}
             description={description}
             clientName={clientName}
             clientEmail={clientEmail}
+            acceptInternationalCards={acceptInternationalCards}
+            clientCountry={clientCountry}
             isPaid={isPaid}
             paidAt={existing?.paidAt}
             onPaid={() => window.location.reload()}

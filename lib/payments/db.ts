@@ -76,6 +76,7 @@ export interface InvoiceRow {
     payment_id: string;
     phase: number;
     amount_paise: number;
+    currency: PaymentCurrency;
     tds_received_paise: number;
     pdf_url: string | null;
     issued_to_name: string | null;
@@ -143,10 +144,27 @@ export async function upsertPendingPayment(params: {
     // Check for existing pending row (idempotent)
     const existing = await getPaymentForPhase(dealToken, phase);
     if (existing && existing.status === "pending") {
-        // Update provider-specific id (in case caller created a fresh order/session before webhook)
-        const updates: Record<string, unknown> = { receipt };
-        if (razorpayOrderId) updates.razorpay_order_id = razorpayOrderId;
-        if (stripeSessionId) updates.stripe_session_id = stripeSessionId;
+        // Refresh canonical fields so a deal that switched currency/provider/amount
+        // before payment cannot reuse a stale row. Server is source of truth —
+        // amount_minor, currency, provider are recomputed every call.
+        const updates: Record<string, unknown> = {
+            receipt,
+            amount_paise: amountMinor,
+            amount_minor: amountMinor,
+            minor_per_major: 100,
+            currency,
+            provider,
+            method,
+        };
+        if (provider === "razorpay") {
+            updates.razorpay_order_id = razorpayOrderId ?? existing.razorpay_order_id ?? null;
+            if (existing.stripe_session_id) updates.stripe_session_id = null;
+            if (existing.stripe_payment_intent_id) updates.stripe_payment_intent_id = null;
+        } else if (provider === "stripe") {
+            updates.stripe_session_id = stripeSessionId ?? existing.stripe_session_id ?? null;
+            if (existing.razorpay_order_id) updates.razorpay_order_id = null;
+            if (existing.razorpay_payment_id) updates.razorpay_payment_id = null;
+        }
         const { data, error } = await supabase
             .from("payments")
             .update(updates)
@@ -358,6 +376,7 @@ export async function createInvoice(params: {
     paymentId: string;
     phase: number;
     amountPaise: number;
+    currency?: PaymentCurrency;
     issuedToName?: string;
     issuedToCompany?: string;
     issuedToEmail?: string;
@@ -374,6 +393,7 @@ export async function createInvoice(params: {
             payment_id: params.paymentId,
             phase: params.phase,
             amount_paise: params.amountPaise,
+            currency: params.currency ?? "INR",
             issued_to_name: params.issuedToName ?? null,
             issued_to_company: params.issuedToCompany ?? null,
             issued_to_email: params.issuedToEmail ?? null,
