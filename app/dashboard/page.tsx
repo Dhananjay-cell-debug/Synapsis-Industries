@@ -10,7 +10,7 @@ import {
     LogOut, ExternalLink, X, ArrowRight,
     Zap, Code2, Globe, ChevronRight, MessageSquare,
     Inbox, Settings2, Plus, Trash2, Check, Clock, Mail, Play, Send,
-    Activity, Columns3,
+    Activity, Columns3, ShieldCheck,
 } from "lucide-react";
 import CommandView from "@/components/admin/CommandView";
 import PipelineView from "@/components/admin/PipelineView";
@@ -25,6 +25,7 @@ import HandoverAdminView from "@/components/phases/HandoverAdminView";
 import OrbitAdminView from "@/components/phases/OrbitAdminView";
 import BlueprintViewer from "@/components/phases/BlueprintViewer";
 import SynLauncher from "@/components/syn/SynLauncher";
+import ComplianceSection from "@/components/admin/compliance/ComplianceSection";
 import { PHASE_NAMES } from "@/lib/phases/constants";
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
@@ -3200,6 +3201,7 @@ const ADMIN_NAV = [
     { id: "pipeline", label: "Pipeline", icon: Columns3 },
     { id: "inbox", label: "Inbox", icon: Inbox },
     { id: "manage", label: "Projects", icon: Settings2 },
+    { id: "compliance", label: "Compliance OS", icon: ShieldCheck },
 ];
 
 function NavButton({ item, active, setActive, badge }: {
@@ -3510,7 +3512,7 @@ export default function Dashboard() {
     );
 
     // If someone tries to access admin views without being admin, fall back to home
-    const safeView = (["inbox", "manage", "workspace", "command", "pipeline"].includes(view) && !isAdmin) ? "home" : view;
+    const safeView = (["inbox", "manage", "workspace", "command", "pipeline", "compliance"].includes(view) && !isAdmin) ? "home" : view;
 
     return (
         <div className="h-screen w-full flex bg-[#0A0F1E] text-white font-outfit overflow-hidden relative">
@@ -3557,6 +3559,7 @@ export default function Dashboard() {
                         {safeView === "inbox" && <motion.div key="i" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><InboxView submissions={submissions} onDelete={deleteSubmission} deals={deals} onElect={electDeal} onReject={rejectDeal} onOpenWorkspace={openWorkspace} onUpdateDeal={(token, updates) => setDeals(prev => prev.map(d => d.token === token ? { ...d, ...updates } : d))} onInterested={markInterested} /></motion.div>}
                         {safeView === "manage" && <motion.div key="m" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}><ManageProjectsView projects={projects} saveProject={saveProject} deleteProject={deleteProject} updateProject={updateProject} /></motion.div>}
                         {safeView === "workspace" && activeWorkspace && <motion.div key="ws" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="h-full"><ClientWorkspaceView deal={activeWorkspace} onBack={() => setView("inbox")} adminEmail={session?.user?.email || ""} /></motion.div>}
+                        {safeView === "compliance" && isAdmin && <motion.div key="comp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="h-full"><ComplianceSection /></motion.div>}
                     </AnimatePresence>
                 </div>
             </div>
