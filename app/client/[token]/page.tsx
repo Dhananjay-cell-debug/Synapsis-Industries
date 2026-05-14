@@ -19,6 +19,7 @@ import BuildView from "@/components/phases/BuildView";
 import DeliverView from "@/components/phases/DeliverView";
 import HandoverView from "@/components/phases/HandoverView";
 import OrbitView from "@/components/phases/OrbitView";
+import SynLauncher from "@/components/syn/SynLauncher";
 import { PHASE_NAMES } from "@/lib/phases/constants";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -1546,7 +1547,7 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
     const deliverAvailable = phase >= 5;
     const handoverAvailable = phase >= 6;
     const orbitAvailable = phase >= 7;
-    const [activeTab, setActiveTab] = useState<"overview" | "process" | "questionnaire" | "chat" | "blueprint" | "ignition" | "build" | "deliver" | "handover" | "orbit">(
+    const [activeTab, setActiveTab] = useState<"overview" | "process" | "questionnaire" | "blueprint" | "ignition" | "build" | "deliver" | "handover" | "orbit">(
         orbitAvailable ? "orbit" : handoverAvailable ? "handover" : deliverAvailable ? "deliver" : buildAvailable ? "build" : ignitionAvailable ? "ignition" : blueprintAvailable ? "blueprint" : "overview"
     );
     const { token } = useParams();
@@ -1580,7 +1581,6 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
         lastPhaseRef.current = phase;
     }, [phase, blueprintAvailable]);
 
-    const TAB_ORDER = ["overview", "process", "questionnaire", "chat", "blueprint", "ignition", "build", "deliver", "handover", "orbit"];
     const canAccessTab = (tabId: string) => {
         if (tabId === "blueprint") return blueprintAvailable;
         if (tabId === "ignition") return ignitionAvailable;
@@ -1588,7 +1588,7 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
         if (tabId === "deliver") return deliverAvailable;
         if (tabId === "handover") return handoverAvailable;
         if (tabId === "orbit") return orbitAvailable;
-        return TAB_ORDER.indexOf(tabId) <= TAB_ORDER.indexOf(activeTab);
+        return true;
     };
 
     const handleUnlock = () => {
@@ -1626,7 +1626,7 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
         }
         const updated = await res.json();
         onStatusUpdate(updated);
-        setActiveTab("chat");
+        setActiveTab("overview");
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
@@ -1648,7 +1648,6 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
         { id: "overview", label: "Overview", icon: <LayoutDashboard size={14} /> },
         { id: "process", label: "Process", icon: <Map size={14} /> },
         { id: "questionnaire", label: "Questionnaire", icon: <FileQuestion size={14} /> },
-        { id: "chat", label: "Chat", icon: <MessageSquare size={14} /> },
         ...(blueprintAvailable ? [{ id: "blueprint", label: "Blueprint", icon: <Layers size={14} /> }] : []),
         ...(ignitionAvailable ? [{ id: "ignition", label: "Ignition", icon: <Rocket size={14} /> }] : []),
         ...(buildAvailable ? [{ id: "build", label: "Build", icon: <Hammer size={14} /> }] : []),
@@ -1658,7 +1657,6 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
     ];
 
     const questionnaireNotDone = !deal.questionnaire;
-    const chatCount = (deal.messages || []).filter(m => m.from === "vark").length;
     const initials = (deal.name || "?").charAt(0).toUpperCase();
 
     return (
@@ -1704,7 +1702,7 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                     {tabs.map(tab => {
                         const isActive = activeTab === tab.id;
                         const isLocked = !canAccessTab(tab.id);
-                        const badge = tab.id === "questionnaire" && questionnaireNotDone ? "!" : tab.id === "chat" && chatCount > 0 ? String(chatCount) : null;
+                        const badge = tab.id === "questionnaire" && questionnaireNotDone ? "!" : null;
                         return (
                             <button
                                 key={tab.id}
@@ -1736,9 +1734,8 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                     })}
                 </nav>
 
-                {/* Bottom */}
+                {/* Bottom — original layout, Switch Account left-aligned */}
                 <div className="px-7 py-5 border-t border-white/[0.05]">
-                    <p className="text-[10px] text-white/25 leading-relaxed mb-4">Questions? Use the Chat tab or reach out directly.</p>
                     <button
                         onClick={() => signOut()}
                         className="flex items-center gap-2 text-[10px] text-white/30 hover:text-white/60 transition-colors"
@@ -1772,7 +1769,6 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                             {activeTab === "overview" && <OverviewTab deal={deal} onQuestionnaireClick={() => setActiveTab("questionnaire")} onProcessClick={() => setActiveTab("process")} onUnlock={handleUnlock} unlocked={false} onBlueprintClick={() => setActiveTab("blueprint")} />}
                             {activeTab === "process" && <ProcessTab deal={deal} onQuestionnaireUnlock={handleQuestionnaireUnlock} />}
                             {activeTab === "questionnaire" && <QuestionnaireTab deal={deal} onSubmit={handleQuestionnaireSubmit} onEnterWorkspace={(updated) => { onStatusUpdate(updated); setActiveTab("overview"); }} />}
-                            {activeTab === "chat" && <ChatTab deal={deal} onSend={handleSendMessage} />}
                             {activeTab === "blueprint" && (
                                 <BlueprintViewer
                                     deal={deal as any}
@@ -1819,6 +1815,13 @@ function ClientPhase1Workspace({ deal, onStatusUpdate }: { deal: Deal, onStatusU
                 <div className="absolute top-0 left-[260px] w-[40%] h-[50%] bg-[#11B8EA]/3 blur-[120px] rounded-full" style={{ willChange: "transform" }} />
                 <div className="absolute bottom-0 right-0 w-[35%] h-[40%] bg-[#3B6AE8]/4 blur-[100px] rounded-full" style={{ willChange: "transform" }} />
             </div>
+
+            {/* Syn AI Concierge — floating bottom-left */}
+            <SynLauncher
+                token={String(token)}
+                clientName={deal.name}
+                phase={phase}
+            />
         </div>
     );
 }

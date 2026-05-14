@@ -15,6 +15,7 @@ import {
 import CommandView from "@/components/admin/CommandView";
 import PipelineView from "@/components/admin/PipelineView";
 import NotificationCenter from "@/components/admin/NotificationCenter";
+import SynActivityButton from "@/components/admin/SynActivityButton";
 import PaymentProfileEditor from "@/components/admin/PaymentProfileEditor";
 import BlueprintBuilder from "@/components/phases/BlueprintBuilder";
 import IgnitionAdminView from "@/components/phases/IgnitionAdminView";
@@ -23,6 +24,7 @@ import DeliverAdminView from "@/components/phases/DeliverAdminView";
 import HandoverAdminView from "@/components/phases/HandoverAdminView";
 import OrbitAdminView from "@/components/phases/OrbitAdminView";
 import BlueprintViewer from "@/components/phases/BlueprintViewer";
+import SynLauncher from "@/components/syn/SynLauncher";
 import { PHASE_NAMES } from "@/lib/phases/constants";
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
@@ -2407,7 +2409,7 @@ const DISCOVER_QUESTIONS = [
     "Who else is involved in reviewing and approving work during the build — and how fast can decisions get made when we need a yes or no?",
 ];
 
-type WorkspaceLeftTab = "questionnaire" | "chat" | "notes";
+type WorkspaceLeftTab = "questionnaire" | "notes";
 
 function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: Deal; onBack: () => void; adminEmail: string }) {
     const [deal, setDeal] = useState(initialDeal);
@@ -2648,7 +2650,6 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                         <div className="shrink-0 flex items-center gap-1 px-6 pt-5 pb-0 border-b border-white/6">
                             {([
                                 { id: "questionnaire", label: "Questionnaire", badge: deal.questionnaire ? "✓" : null },
-                                { id: "chat", label: "Chat", badge: unreadFromClient > 0 ? String(unreadFromClient) : null },
                                 { id: "notes", label: "Notes", badge: null },
                             ] as { id: WorkspaceLeftTab; label: string; badge: string | null }[]).map(t => (
                                 <button key={t.id}
@@ -2714,57 +2715,6 @@ function ClientWorkspaceView({ deal: initialDeal, onBack, adminEmail }: { deal: 
                                                 ))}
                                             </div>
                                         )}
-                                    </motion.div>
-                                )}
-
-                                {/* CHAT TAB */}
-                                {leftTab === "chat" && (
-                                    <motion.div key="c" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                                        className="flex flex-col h-full" style={{ minHeight: "480px" }}>
-                                        {/* Messages */}
-                                        <div className="flex-1 flex flex-col gap-4 overflow-y-auto mb-4" style={{ maxHeight: "380px" }}>
-                                            {messages.length === 0 && (
-                                                <div className="flex flex-col items-center justify-center py-12 text-center">
-                                                    <MessageSquare size={24} className="text-white/10 mb-2" />
-                                                    <p className="text-white/20 text-sm">No messages yet.</p>
-                                                </div>
-                                            )}
-                                            {messages.map((msg, i) => {
-                                                const isAdmin = msg.from === "admin";
-                                                return (
-                                                    <div key={i} className={`flex flex-col gap-1 ${isAdmin ? "items-end" : "items-start"}`}>
-                                                        <div className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${isAdmin ? "bg-[#3B6AE8] text-white rounded-br-sm" : "bg-white/[0.05] text-white/75 rounded-bl-sm border border-white/8"}`}>
-                                                            {msg.imageUrl
-                                                                // eslint-disable-next-line @next/next/no-img-element
-                                                                ? <img src={msg.imageUrl} alt="attachment" className="rounded-xl max-w-full" />
-                                                                : <span className="whitespace-pre-wrap">{msg.text}</span>
-                                                            }
-                                                        </div>
-                                                        <p className={`text-[10px] text-white/20 px-1 ${isAdmin ? "text-right" : ""}`}>
-                                                            {isAdmin ? "You (admin)" : (deal.name || "Client").split(" ")[0]} · {timeAgo(msg.timestamp)}
-                                                        </p>
-                                                    </div>
-                                                );
-                                            })}
-                                            <div ref={chatBottomRef} />
-                                        </div>
-                                        {/* Input */}
-                                        <div className="shrink-0 border border-white/10 rounded-2xl bg-white/[0.02] overflow-hidden focus-within:border-[#11B8EA]/30 transition-colors">
-                                            <textarea rows={3}
-                                                placeholder="Reply to client... (Enter to send)"
-                                                value={chatText}
-                                                onChange={e => setChatText(e.target.value)}
-                                                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAdminMessage(); } }}
-                                                className="w-full bg-transparent px-4 pt-3 text-sm text-white outline-none placeholder:text-white/15 resize-none"
-                                            />
-                                            <div className="flex justify-end px-4 pb-3">
-                                                <button onClick={sendAdminMessage} disabled={!chatText.trim() || sendingChat}
-                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-30"
-                                                    style={{ background: chatText.trim() ? "linear-gradient(135deg,#11B8EA,#3B6AE8)" : "rgba(255,255,255,0.05)", color: chatText.trim() ? "#0A0F1E" : "#ffffff40" }}>
-                                                    {sendingChat ? "Sending..." : "Send"} <Send size={12} />
-                                                </button>
-                                            </div>
-                                        </div>
                                     </motion.div>
                                 )}
 
@@ -3573,6 +3523,14 @@ export default function Dashboard() {
 
             <Sidebar active={safeView} setActive={setView} user={session?.user ?? null} isAdmin={isAdmin} submissions={submissions} />
 
+            {/* Syn — admin strategy console, floating bottom-left */}
+            {isAdmin && (
+                <SynLauncher
+                    mode="admin"
+                    clientName={session?.user?.name || "Dhananjay"}
+                />
+            )}
+
             <div className="flex-1 flex flex-col overflow-hidden relative z-10">
                 {/* Topbar */}
                 <header className="flex items-center justify-between px-8 py-4 border-b border-white/6 shrink-0 bg-[#0A0F1E]/60 backdrop-blur-sm">
@@ -3581,6 +3539,7 @@ export default function Dashboard() {
                         <span className="text-[10px] tracking-[0.35em] uppercase text-white/25">All Systems Operational</span>
                     </div>
                     <div className="flex items-center gap-3">
+                        {isAdmin && <SynActivityButton onOpenDeal={openWorkspace} />}
                         {isAdmin && <NotificationCenter onOpenDeal={openWorkspace} />}
                         <Link href="/" className="text-[10px] text-white/25 hover:text-white/50 transition-colors tracking-[0.2em] uppercase">← Public Site</Link>
                     </div>

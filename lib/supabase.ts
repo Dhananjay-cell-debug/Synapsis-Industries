@@ -25,7 +25,15 @@ export const supabase: SupabaseClient<any, any, any> =
         auth: { persistSession: false, autoRefreshToken: false },
         db: { schema: "synapsis" as any },
         global: {
-            headers: { "x-application": "synapsis-payments" },
+            headers: {
+                "x-application": "synapsis-payments",
+                // Force PostgREST to read AND write to the `synapsis` schema.
+                // supabase-js sets these from db.schema for inserts but the
+                // Accept-Profile header was getting dropped for SELECT in
+                // our deployed build — pinning them here removes the doubt.
+                "Accept-Profile": "synapsis",
+                "Content-Profile": "synapsis",
+            },
         },
     });
 

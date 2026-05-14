@@ -15,6 +15,7 @@ import {
     PHASE_NAMES, PHASE_COLORS, GHOST_ALERT_DAYS,
 } from "@/lib/phases/constants";
 import type { Notification, AuditEntry } from "@/lib/phases/schema";
+import RaisedTab from "./RaisedTab";
 
 interface DealLite {
     token: string;
@@ -244,6 +245,9 @@ export default function CommandView({ deals, onJump }: Props) {
                     )}
                 </Panel>
             </div>
+
+            {/* ─── Doubts & Issues raised by clients via Syn ──────────── */}
+            <RaisedTab />
         </div>
     );
 }

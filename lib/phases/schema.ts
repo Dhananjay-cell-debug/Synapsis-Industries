@@ -10,7 +10,7 @@
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
 export type Timestamp = number;
-export type Actor = "admin" | "client" | "system";
+export type Actor = "admin" | "client" | "system" | "syn";
 export type UUID = string;
 
 // ─── Audit (every mutation passes through audit.ts) ──────────────────────────
