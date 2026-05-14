@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { buildSynSystemPrompt, type ClientContext } from "@/lib/syn/intelligence";
 import { callSynStream } from "@/lib/syn/providers";
 import { buildDealSnapshot } from "@/lib/syn/snapshot";
+import { isPanicMessage, handlePanic } from "@/lib/syn/panic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -116,6 +117,39 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
         content: message.trim(),
         attachments: attachments ?? null,
     });
+
+    // ─── #PANIC PROTOCOL ──────────────────────────────────────────────────
+    // Emergency brake. Freeze Syn auto-actions for this deal, alert admin,
+    // reply with a canned calm message. Skip the LLM entirely.
+    if (isPanicMessage(message)) {
+        const panic = await handlePanic(deal, message.trim());
+        await supabase.from("syn_messages").insert({
+            session_id: sessionId,
+            deal_token: token,
+            role: "assistant",
+            content: panic.reply,
+            model: "syn-panic-protocol",
+        });
+        await supabase.from("syn_sessions").update({ updated_at: new Date().toISOString() }).eq("id", sessionId);
+
+        const enc = new TextEncoder();
+        const panicStream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(enc.encode(`event: session\ndata: ${JSON.stringify({ sessionId })}\n\n`));
+                controller.enqueue(enc.encode(`event: token\ndata: ${JSON.stringify({ delta: panic.reply })}\n\n`));
+                controller.enqueue(enc.encode(`event: done\ndata: ${JSON.stringify({ sessionId })}\n\n`));
+                controller.close();
+            },
+        });
+        return new Response(panicStream, {
+            headers: {
+                "Content-Type": "text/event-stream; charset=utf-8",
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        });
+    }
 
     // ─── Load conversation history (last 20 turns to keep context window sane) ──
     const { data: history } = await supabase

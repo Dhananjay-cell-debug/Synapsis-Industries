@@ -68,6 +68,22 @@ export default function SynActivityButton({ onOpenDeal }: { onOpenDeal?: (token:
         await load();
     }
 
+    async function rollback(actionId: string) {
+        if (!window.confirm("Roll back this Syn transition? The deal returns to its previous phase.")) return;
+        const r = await fetch(`/api/admin/syn/rollback/${actionId}`, { method: "POST" });
+        const j = await r.json();
+        if (!r.ok) { window.alert(`Rollback failed: ${j.error || "unknown"}`); return; }
+        await load();
+    }
+
+    // A transition.fired action is reversible if <5 min old and not already rolled back.
+    function isRollbackable(item: SynAction): boolean {
+        if (item.action_type !== "transition.fired") return false;
+        if ((item.evidence as any)?.rolledBack === true) return false;
+        const ageMs = Date.now() - new Date(item.created_at).getTime();
+        return ageMs <= 5 * 60 * 1000;
+    }
+
     function badgeColor(outcome: string) {
         if (outcome === "success") return "#10b981";
         if (outcome === "blocked") return "#f59e0b";
@@ -196,7 +212,7 @@ export default function SynActivityButton({ onOpenDeal }: { onOpenDeal?: (token:
                                                     <p className="text-white/40 text-[10px] mt-1 font-mono">checklist: {item.checklist_id}</p>
                                                 )}
                                                 {item.deal_token && (
-                                                    <div className="flex items-center gap-2 mt-1.5">
+                                                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onOpenDeal?.(item.deal_token!); }}
                                                             className="text-[10px] underline hover:no-underline"
@@ -211,6 +227,16 @@ export default function SynActivityButton({ onOpenDeal }: { onOpenDeal?: (token:
                                                         >
                                                             <ShieldOff size={10} /> kill-switch
                                                         </button>
+                                                        {isRollbackable(item) && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); rollback(item.id); }}
+                                                                className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                                                                style={{ background: "#f59e0b20", color: "#f59e0b", border: "1px solid #f59e0b50" }}
+                                                                title="Reverse this transition (within 5-min window)"
+                                                            >
+                                                                <RotateCcw size={10} /> undo
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

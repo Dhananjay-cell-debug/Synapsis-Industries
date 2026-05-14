@@ -409,6 +409,20 @@ These are enforced in code, not in prompts. Prompts can be jailbroken; code cann
 
 Each sprint is a deployable unit. Stop after any sprint = working incremental upgrade.
 
+### **SPRINT 5 — Rollback + #panic + Webhook Wiring  ✅ SHIPPED 2026-05-14**
+
+- [x] `app/api/admin/syn/rollback/[actionId]/route.ts` — 5-min rollback window, 4 safety guards (type, age, already-rolled-back, deal-hasn't-moved), uses forcePhaseJump
+- [x] `components/admin/SynActivityButton.tsx` — "undo" button on transition.fired actions <5 min old
+- [x] `lib/syn/panic.ts` + chat-route integration — client types `#panic` → Syn freezes deal kill-switch, loud admin email, canned calm reply, LLM skipped
+- [x] Razorpay + Stripe webhooks → `synSweep()` wired post-payment-capture — Syn reacts to payment events in real time (doesn't wait for daily cron)
+- [x] Production deploy: [https://synapsis-industries.vercel.app](https://synapsis-industries.vercel.app)
+
+**Result:** The pilot is now fully closed-loop. Payment clears → Syn instantly re-checks the next gate. Client panics → Syn freezes itself. Syn fires wrong → admin has a 5-min undo button. All 5 sprints shipped.
+
+**Remaining (post-Sprint-5 polish, not blocking):** daily digest email, virus-scan plumbing for asset uploads, `request_admin_decision` structured decision cards, manual NEFT verify route → synSweep wiring.
+
+---
+
 ### **SPRINT 4 — Admin Observability (Activity Feed + Top-Bar Button + Kill Switch)  ✅ SHIPPED 2026-05-13**
 
 - [x] `app/api/admin/syn/activity/route.ts` — GET paginated feed + POST bulk acknowledge

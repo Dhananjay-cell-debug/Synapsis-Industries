@@ -32,6 +32,7 @@ import {
 } from "@/lib/payments/db";
 import { generateAndPersistInvoice } from "@/lib/invoice/generate";
 import { sendPaymentVerifiedEmails } from "@/lib/email/payment-notifications";
+import { synSweep } from "@/lib/syn/orchestrator";
 
 // Force Node runtime — we need RAW body access and crypto
 export const runtime = "nodejs";
@@ -203,11 +204,19 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    await updateDeal(token, () => ({
+    const updatedDeal = await updateDeal(token, () => ({
         ...result.deal,
         payments: legacyPayments,
         lastInteractionAt: Date.now(),
     }));
+
+    // Syn auto-pilot: payment just cleared — let Syn immediately check whether
+    // the next gate (e.g. confirmAssets) can now fire. Best-effort, never blocks
+    // the webhook response. Respects per-deal + global kill-switch internally.
+    if (updatedDeal && process.env.SYN_GLOBAL_KILL_SWITCH !== "1") {
+        try { await synSweep(updatedDeal); }
+        catch (e) { console.error("[webhook] synSweep failed (non-fatal):", e); }
+    }
 
     // Side effects: invoice + email (best-effort)
     try {
