@@ -2,18 +2,22 @@
 // The shell: a secondary sidebar that slides in (connected to the primary
 // dashboard sidebar) + a white premium content panel. Admin-only — mounted
 // from app/dashboard/page.tsx behind the isAdmin guard.
+//
+// Ships with a guided tour (GuidedTour) — spotlights each route and explains
+// it. Auto-runs on first visit; re-launchable from the sidebar footer.
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     LayoutDashboard, Calculator, CalendarClock, Receipt,
     PiggyBank, FileSpreadsheet, Globe2, Building2, FolderLock,
-    ShieldCheck,
+    ShieldCheck, Compass,
 } from "lucide-react";
 import { COMPLIANCE } from "./ui";
 import { cn } from "@/lib/utils";
+import GuidedTour, { type TourStep } from "./GuidedTour";
 
 import OverviewView from "./views/OverviewView";
 import TaxEstimateView from "./views/TaxEstimateView";
@@ -54,13 +58,102 @@ const GROUP_LABEL: Record<NavItem["group"], string> = {
     identity: "Identity",
 };
 
+// ─── Guided orientation flow ───────────────────────────────────────────────
+const ORIENTATION: TourStep[] = [
+    {
+        target: "compliance-home",
+        title: "Yeh tera Compliance OS hai",
+        body: "Government ka saara GST + tax kaam yahan se chalega. Chal, ek-ek karke poora section dikhata hu — 1 minute lagega, koi homework nahi.",
+    },
+    {
+        target: "nav-overview", view: "overview",
+        title: "Overview",
+        body: "Tera health score, agli deadlines, projected tax — sab ek nazar mein. Hafte mein ek baar yahan aana kaafi hai.",
+    },
+    {
+        target: "nav-tax-estimate", view: "tax-estimate",
+        title: "Tax Estimate",
+        body: "Sliders ghuma ke dekh tera tax kitna banega. Engine live recompute karta hai — old vs new regime, dono compare automatically.",
+    },
+    {
+        target: "nav-calendar", view: "calendar",
+        title: "Compliance Calendar",
+        body: "Saari deadlines ek jagah. Jab koi return file kar de — yahan aake 'Mark filed' dabana. Reminders apne aap aayenge.",
+    },
+    {
+        target: "nav-expenses", view: "expenses",
+        title: "Expenses & ITC",
+        body: "Har business kharcha yahan daal — Vercel, laptop, fees. GST wala paisa wapas milta hai (ITC) — system track karega.",
+    },
+    {
+        target: "nav-deductions", view: "deductions",
+        title: "Deductions",
+        body: "PPF, NPS, health insurance yahan log kar. Har entry tera taxable income kam karti hai — progress bars dikhate hain kitna bacha.",
+    },
+    {
+        target: "nav-gst", view: "gst",
+        title: "GST Workspace",
+        body: "Kis client pe kitna GST banega — Indian, foreign, sab. Engine khud classify karta hai; tu sirf scenario daal ke verdict dekh.",
+    },
+    {
+        target: "nav-forex", view: "forex",
+        title: "Forex & FIRC",
+        body: "Foreign client ka paisa aaye toh yahan log kar. FIRC (export ka proof) ka status bhi yahin track hota hai.",
+    },
+    {
+        target: "nav-profile", view: "profile",
+        title: "Tax Profile",
+        body: "GSTIN aaye toh sabse pehle YAHAN update karna. Yeh poore system ka source of truth hai — GSTIN, LUT, regime, sab yahan se.",
+    },
+    {
+        target: "nav-vault", view: "vault",
+        title: "Document Vault",
+        body: "Saare certificates, receipts, acknowledgements ek jagah. Yeh abhi ban raha hai — structure ready hai, storage layer baaki.",
+    },
+    {
+        target: "compliance-home", view: "overview",
+        title: "Bas! Itna hi.",
+        body: "Roz dekhne ki zarurat nahi — alert aaye tab. Mahine ka ~20 min. Confused lage toh neeche 'Guided tour' button se yeh dobara chala lena.",
+    },
+];
+
+const TOUR_FLAG = "synapsis_compliance_tour_v1";
+
 export default function ComplianceSection() {
     const [active, setActive] = useState<ViewId>("overview");
+    const [tourOn, setTourOn] = useState(false);
+    const [tourStep, setTourStep] = useState(0);
+
+    // first-visit: auto-start the tour once the panel has settled
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (localStorage.getItem(TOUR_FLAG)) return;
+        const t = setTimeout(() => { setTourStep(0); setTourOn(true); }, 750);
+        return () => clearTimeout(t);
+    }, []);
+
+    // when a tour step carries a view, switch to it so the real screen shows
+    useEffect(() => {
+        if (!tourOn) return;
+        const v = ORIENTATION[tourStep]?.view;
+        if (v) setActive(v as ViewId);
+    }, [tourOn, tourStep]);
+
+    const endTour = () => {
+        setTourOn(false);
+        setTourStep(0);
+        if (typeof window !== "undefined") localStorage.setItem(TOUR_FLAG, "done");
+    };
+    const nextStep = () => {
+        if (tourStep >= ORIENTATION.length - 1) endTour();
+        else setTourStep((s) => s + 1);
+    };
+    const backStep = () => setTourStep((s) => Math.max(0, s - 1));
 
     const groups: NavItem["group"][] = ["core", "records", "identity"];
 
     return (
-        <div className="flex h-full w-full overflow-hidden" style={{ background: COMPLIANCE.panel }}>
+        <div className="flex h-full w-full overflow-hidden relative" style={{ background: COMPLIANCE.panel }}>
 
             {/* ─── Secondary sidebar — slides in, connected to primary ─── */}
             <motion.aside
@@ -71,7 +164,11 @@ export default function ComplianceSection() {
                 style={{ background: COMPLIANCE.sidebar, borderColor: "rgba(255,255,255,0.06)" }}
             >
                 {/* Header */}
-                <div className="px-5 py-5 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <div
+                    data-tour="compliance-home"
+                    className="px-5 py-5 border-b"
+                    style={{ borderColor: "rgba(255,255,255,0.07)" }}
+                >
                     <div className="flex items-center gap-2.5">
                         <div
                             className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -99,6 +196,7 @@ export default function ComplianceSection() {
                                     return (
                                         <button
                                             key={item.id}
+                                            data-tour={`nav-${item.id}`}
                                             onClick={() => setActive(item.id)}
                                             className={cn(
                                                 "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-left w-full transition-all duration-150 group font-outfit",
@@ -129,10 +227,17 @@ export default function ComplianceSection() {
                     ))}
                 </nav>
 
-                {/* Footer */}
+                {/* Footer — guided tour launcher */}
                 <div className="px-5 py-4 border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                    <p className="text-[10px] leading-relaxed text-white/30">
-                        System guides — you execute. Every government action has a playbook.
+                    <button
+                        onClick={() => { setTourStep(0); setTourOn(true); }}
+                        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[11px] font-semibold transition-all hover:brightness-110"
+                        style={{ background: "rgba(12,151,196,0.14)", color: COMPLIANCE.accent }}
+                    >
+                        <Compass size={13} /> Guided tour
+                    </button>
+                    <p className="text-[10px] leading-relaxed text-white/30 mt-2.5">
+                        System guides — you execute. Har step pe tutorial saath hai.
                     </p>
                 </div>
             </motion.aside>
@@ -161,6 +266,17 @@ export default function ComplianceSection() {
                     </AnimatePresence>
                 </div>
             </div>
+
+            {/* ─── Guided tour overlay ─── */}
+            {tourOn && (
+                <GuidedTour
+                    steps={ORIENTATION}
+                    stepIndex={tourStep}
+                    onNext={nextStep}
+                    onBack={backStep}
+                    onSkip={endTour}
+                />
+            )}
         </div>
     );
 }
