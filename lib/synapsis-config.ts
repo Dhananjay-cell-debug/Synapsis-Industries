@@ -6,6 +6,13 @@
 // → ONLY put values that are safe to ship to the browser.
 // → Bank account number: store last-4 ONLY here. Full number in env (server-only).
 // → PAN: store last-4 ONLY here. Full PAN in env if needed.
+//
+// ⚠ COMPLIANCE OS NOTE:
+// Tax/GST/LUT/regime fields here are display-only placeholders. The single
+// source of truth for tax identity is the `synapsis.business_tax_profile`
+// row, accessed via lib/compliance/business-profile.ts. When updating
+// GSTIN/LUT/regime, update the DB row — not this file.
+// See docs/compliance/COMPLIANCE-OS-MASTER.md.
 
 export const SYNAPSIS_CONFIG = {
     // ─── Identity ──────────────────────────────────────────────────────────
@@ -17,8 +24,8 @@ export const SYNAPSIS_CONFIG = {
     // ─── Registration / Compliance ─────────────────────────────────────────
     udyamRegistration: process.env.NEXT_PUBLIC_SYNAPSIS_UDYAM || "UDYAM-XX-XX-XXXXXXX",
     panLast4:          process.env.NEXT_PUBLIC_SYNAPSIS_PAN_LAST4 || "XXXX",
-    gstinStatus: "Not Applicable — Turnover below ₹20L threshold (Sole Proprietor)",
-    gstin: "" as string,                                  // empty until threshold crossed; THEN fill
+    gstinStatus: "ARN issued — GSTIN pending (registration in progress)",
+    gstin: "" as string,                                  // populated server-side from business_tax_profile when active
 
     // ─── Bank Details (for NEFT/RTGS instructions to clients) ──────────────
     // ⚠ Last-4 only here. Full account number lives in SERVER ENV: SYNAPSIS_BANK_ACCOUNT_FULL
