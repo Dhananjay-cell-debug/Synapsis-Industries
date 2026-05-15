@@ -173,7 +173,7 @@ export default function SynapsisHomepage() {
 
                         <div className="work-feature">
                             <div>
-                                <div className="work-feature-tag">// FEATURED · FINTECH UNDERWRITING</div>
+                                <div className="work-feature-tag">{"// FEATURED · FINTECH UNDERWRITING"}</div>
                                 <h3 className="work-feature-title">An autonomous underwriting <em>agent</em> that closes most of the queue before lunch.</h3>
                             </div>
                             <div className="work-feature-image">
@@ -207,7 +207,7 @@ export default function SynapsisHomepage() {
                     <div className="studio-top">
                         <div className="studio-portrait">
                             <div className="studio-portrait-name">Dhananjay C.</div>
-                            <div className="studio-portrait-label">// FOUNDER · IST</div>
+                            <div className="studio-portrait-label">{"// FOUNDER · IST"}</div>
                         </div>
                         <div>
                             <div className="studio-voice">
@@ -275,15 +275,15 @@ export default function SynapsisHomepage() {
 
                     <div className="contact-ledger">
                         <div className="contact-row">
-                            <div className="contact-label">// EMAIL</div>
+                            <div className="contact-label">{"// EMAIL"}</div>
                             <div className="contact-val"><a href="mailto:dhananjaychitmillabusiness@gmail.com">dhananjaychitmillabusiness<br />@gmail.com</a></div>
                         </div>
                         <div className="contact-row">
-                            <div className="contact-label">// BOOK A CALL</div>
+                            <div className="contact-label">{"// BOOK A CALL"}</div>
                             <div className="contact-val"><a href="#">cal.com/synapsis<br />→ 30 min · IST</a></div>
                         </div>
                         <div className="contact-row">
-                            <div className="contact-label">// STUDIO</div>
+                            <div className="contact-label">{"// STUDIO"}</div>
                             <div className="contact-val">Hyderabad · India<br />Operating IST 09:00–22:00</div>
                         </div>
                     </div>
@@ -310,15 +310,15 @@ export default function SynapsisHomepage() {
                         <div className="foot-brand-text">An atelier of engineers, designers, and voice-systems specialists. Hyderabad / online / on-site.</div>
                     </div>
                     <div className="foot-col">
-                        <div className="foot-col-label">// Studio</div>
+                        <div className="foot-col-label">{"// Studio"}</div>
                         <ul><li><a href="#s04">Services</a></li><li><a href="#s05">Method</a></li><li><a href="#s06">Work</a></li><li><a href="#s07">Team</a></li></ul>
                     </div>
                     <div className="foot-col">
-                        <div className="foot-col-label">// Resources</div>
+                        <div className="foot-col-label">{"// Resources"}</div>
                         <ul><li><a href="#s08">Field Notes</a></li><li><a href="#">Brand kit</a></li><li><a href="#">Open positions</a></li></ul>
                     </div>
                     <div className="foot-col">
-                        <div className="foot-col-label">// Reach</div>
+                        <div className="foot-col-label">{"// Reach"}</div>
                         <ul><li><a href="mailto:dhananjaychitmillabusiness@gmail.com">Email</a></li><li><a href="#">LinkedIn</a></li><li><a href="#">GitHub</a></li></ul>
                     </div>
                 </div>
