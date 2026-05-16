@@ -4,13 +4,27 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Receipt, Trash2, X } from "lucide-react";
+import { Plus, Receipt, Trash2, X, Sparkles, FileInput, Check } from "lucide-react";
 import {
     COMPLIANCE, Card, ViewHeader, SectionLabel, StatTile, Badge, Button, Field,
     formatINR, formatINRCompact, formatDate, LoadingBlock, ErrorBlock, EmptyState,
 } from "../ui";
 import { cn } from "@/lib/utils";
 import type { Expense, ExpenseCategory } from "@/lib/compliance/types";
+
+interface ExpenseDraft {
+    expense_date: string;
+    vendor: string;
+    description: string | null;
+    category_code: string;
+    amount_rupees: number;
+    gst_rupees: number;
+    vendor_gstin: string | null;
+    confidence: "high" | "medium" | "low";
+    source_reference: string | null;
+    raw_snippet: string;
+    notes: string | null;
+}
 
 interface ExpensesData {
     expenses: Expense[];
@@ -28,6 +42,13 @@ const n = (v: unknown) => (typeof v === "bigint" ? Number(v) : Number(v ?? 0));
 
 export default function ExpensesView() {
     const [data, setData] = useState<ExpensesData | null>(null);
+    const [showSmart, setShowSmart] = useState(false);
+    const [smartText, setSmartText] = useState("");
+    const [parsing, setParsing] = useState(false);
+    const [parseErr, setParseErr] = useState<string | null>(null);
+    const [drafts, setDrafts] = useState<ExpenseDraft[] | null>(null);
+    const [bulkSaving, setBulkSaving] = useState(false);
+    const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -101,6 +122,89 @@ export default function ExpensesView() {
         }
     };
 
+    // ─── Smart-Add: AI parse raw text → preview drafts → bulk create ───
+    const openSmart = () => {
+        setShowSmart(true);
+        setShowForm(false);
+        setSmartText("");
+        setDrafts(null);
+        setParseErr(null);
+        setBulkResult(null);
+    };
+    const closeSmart = () => {
+        setShowSmart(false);
+        setSmartText("");
+        setDrafts(null);
+        setParseErr(null);
+        setBulkResult(null);
+    };
+    const parseText = async () => {
+        if (!smartText.trim()) return;
+        setParsing(true);
+        setParseErr(null);
+        setDrafts(null);
+        try {
+            const r = await fetch("/api/compliance/expenses/parse", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: smartText }),
+            });
+            const body = await r.json();
+            if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+            setDrafts(body.expenses ?? []);
+            if ((body.expenses ?? []).length === 0) {
+                setParseErr("AI couldn't find any expenses in that text. Try a clearer paste — vendor + amount + date helps.");
+            }
+        } catch (e) {
+            setParseErr(e instanceof Error ? e.message : "Parse failed");
+        } finally {
+            setParsing(false);
+        }
+    };
+    const updateDraft = (i: number, patch: Partial<ExpenseDraft>) => {
+        setDrafts((cur) => cur ? cur.map((d, idx) => idx === i ? { ...d, ...patch } : d) : cur);
+    };
+    const removeDraft = (i: number) => {
+        setDrafts((cur) => cur ? cur.filter((_, idx) => idx !== i) : cur);
+    };
+    const bulkCreate = async () => {
+        if (!drafts || drafts.length === 0) return;
+        setBulkSaving(true);
+        try {
+            const payload = drafts.map((d) => ({
+                expense_date: d.expense_date,
+                vendor: d.vendor,
+                description: d.description ?? undefined,
+                category_code: d.category_code,
+                amount_paise: Math.round(d.amount_rupees * 100),
+                gst_amount_paise: Math.round(d.gst_rupees * 100),
+                itc_eligible: d.gst_rupees > 0,
+                vendor_gstin: d.vendor_gstin ?? undefined,
+                source: "email_parsed" as const,
+                source_reference: d.source_reference ?? undefined,
+                notes: d.notes ?? undefined,
+            }));
+            const r = await fetch("/api/compliance/expenses/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ expenses: payload }),
+            });
+            const body = await r.json();
+            if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+            setBulkResult({
+                created: Array.isArray(body.created) ? body.created.length : 0,
+                skipped: typeof body.skipped === "number" ? body.skipped : 0,
+            });
+            load();
+            // keep the panel open so user sees the result
+            setDrafts(null);
+        } catch (e) {
+            alert(`Bulk create failed: ${e instanceof Error ? e.message : e}`);
+        } finally {
+            setBulkSaving(false);
+        }
+    };
+
     if (error) return <ErrorBlock message={error} onRetry={load} />;
     if (!data) return <LoadingBlock label="Loading expenses" />;
 
@@ -112,12 +216,18 @@ export default function ExpensesView() {
             <ViewHeader
                 eyebrow={`${data.totals.fiscal_year} · Input tax credit`}
                 title="Expenses & ITC"
-                subtitle="Log every business spend. GST paid on inputs becomes Input Tax Credit against your output GST. Auto-fetch from email arrives in a later phase."
+                subtitle="Paste a Gmail receipt, a GPay confirmation, a bank statement chunk — AI extracts the expenses, you review, bulk-add. Manual entry stays as fallback."
                 action={
-                    <Button onClick={() => setShowForm((s) => !s)}>
-                        {showForm ? <X size={15} /> : <Plus size={15} />}
-                        {showForm ? "Close" : "Add expense"}
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={showSmart ? closeSmart : openSmart}>
+                            {showSmart ? <X size={15} /> : <Sparkles size={15} />}
+                            {showSmart ? "Close" : "Smart Add (AI)"}
+                        </Button>
+                        <Button variant="outline" onClick={() => { setShowForm(s => !s); if (!showForm) closeSmart(); }}>
+                            {showForm ? <X size={15} /> : <Plus size={15} />}
+                            {showForm ? "Close" : "Manual"}
+                        </Button>
+                    </div>
                 }
             />
 
@@ -128,6 +238,76 @@ export default function ExpensesView() {
                 <StatTile label="ITC unclaimed" value={formatINRCompact(data.totals.itc_unclaimed_paise)} sub="Claim in next GSTR-3B" accent />
                 <StatTile label="ITC claimed" value={formatINRCompact(data.totals.itc_claimed_paise)} sub="Already offset" />
             </div>
+
+            {/* ─── SMART ADD PANEL (AI bulk-paste) ─── */}
+            {showSmart && (
+                <Card className="mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Sparkles size={15} style={{ color: COMPLIANCE.accent }} />
+                        <p className="font-serif text-lg" style={{ color: COMPLIANCE.ink }}>Smart Add — paste anything</p>
+                    </div>
+                    <p className="text-[12px] mb-3" style={{ color: COMPLIANCE.muted }}>
+                        Forward a Gmail receipt, paste a GPay/PhonePe confirmation, drop a bank-statement chunk, or paste an invoice text. AI extracts each expense, you review + edit, then bulk-add. Vendor + amount + date is enough — AI fills the rest.
+                    </p>
+                    <textarea
+                        value={smartText}
+                        onChange={(e) => setSmartText(e.target.value)}
+                        placeholder="Paste raw text here — emails, bank lines, GPay confirmations..."
+                        rows={drafts ? 3 : 8}
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-[#0C97C4] font-mono"
+                        style={{ borderColor: COMPLIANCE.hairline, color: COMPLIANCE.ink, resize: "vertical" }}
+                    />
+                    <div className="flex items-center gap-2 mt-3">
+                        <Button onClick={parseText} disabled={parsing || !smartText.trim()}>
+                            <FileInput size={14} /> {parsing ? "Parsing…" : drafts ? "Re-parse" : "Parse with AI"}
+                        </Button>
+                        {smartText.trim() && (
+                            <span className="text-[11px]" style={{ color: COMPLIANCE.muted }}>
+                                {smartText.length.toLocaleString()} chars
+                            </span>
+                        )}
+                    </div>
+                    {parseErr && (
+                        <p className="text-xs mt-3" style={{ color: "#C23B3B" }}>{parseErr}</p>
+                    )}
+                    {bulkResult && (
+                        <div className="flex items-center gap-2 mt-3 rounded-lg px-3 py-2"
+                            style={{ background: "rgba(16,158,90,0.08)", color: "#0E8A50" }}>
+                            <Check size={14} />
+                            <p className="text-[12px] font-semibold">
+                                {bulkResult.created} created · {bulkResult.skipped} skipped (already logged)
+                            </p>
+                        </div>
+                    )}
+
+                    {/* drafts preview */}
+                    {drafts && drafts.length > 0 && (
+                        <div className="mt-4">
+                            <SectionLabel className="mb-2">{drafts.length} expense{drafts.length === 1 ? "" : "s"} extracted — review &amp; edit</SectionLabel>
+                            <div className="flex flex-col gap-2 mb-3 max-h-[420px] overflow-y-auto pr-1">
+                                {drafts.map((d, i) => (
+                                    <DraftRow
+                                        key={i}
+                                        draft={d}
+                                        categories={data.categories}
+                                        onChange={(p) => updateDraft(i, p)}
+                                        onRemove={() => removeDraft(i)}
+                                    />
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2 pt-3 border-t" style={{ borderColor: COMPLIANCE.hairline }}>
+                                <Button onClick={bulkCreate} disabled={bulkSaving}>
+                                    <Plus size={14} /> {bulkSaving ? "Adding…" : `Add all ${drafts.length}`}
+                                </Button>
+                                <Button variant="ghost" onClick={() => setDrafts(null)}>Clear preview</Button>
+                                <span className="ml-auto text-[11px]" style={{ color: COMPLIANCE.muted }}>
+                                    Dedup auto — paste same text twice, second time gets skipped.
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </Card>
+            )}
 
             {/* add form */}
             {showForm && (
@@ -237,6 +417,75 @@ export default function ExpensesView() {
                     ))}
                 </Card>
             )}
+        </div>
+    );
+}
+
+// ─── DraftRow — editable preview of a parsed expense ──────────────────────
+
+function DraftRow({ draft, categories, onChange, onRemove }: {
+    draft: ExpenseDraft;
+    categories: ExpenseCategory[];
+    onChange: (p: Partial<ExpenseDraft>) => void;
+    onRemove: () => void;
+}) {
+    const tone =
+        draft.confidence === "high" ? "success" :
+        draft.confidence === "medium" ? "accent" : "warn";
+
+    return (
+        <div className="rounded-xl border p-3" style={{ borderColor: COMPLIANCE.hairline, background: "#fff" }}>
+            <div className="flex items-center gap-2 mb-2">
+                <Badge tone={tone as "success" | "accent" | "warn"}>{draft.confidence} confidence</Badge>
+                {draft.raw_snippet && (
+                    <span className="text-[10px] truncate max-w-[460px]" style={{ color: COMPLIANCE.muted }}>
+                        “{draft.raw_snippet}”
+                    </span>
+                )}
+                <button onClick={onRemove} className="ml-auto p-1 rounded hover:bg-black/[0.05]" aria-label="Remove">
+                    <X size={13} style={{ color: COMPLIANCE.muted }} />
+                </button>
+            </div>
+            <div className="grid grid-cols-[120px_1fr_120px_120px_120px] gap-2 items-end">
+                <div>
+                    <label className="text-[9px] font-semibold uppercase tracking-[0.14em]" style={{ color: COMPLIANCE.muted }}>Date</label>
+                    <input type="date" value={draft.expense_date}
+                        onChange={(e) => onChange({ expense_date: e.target.value })}
+                        className="w-full mt-0.5 rounded-md border bg-white px-2 py-1.5 text-xs outline-none focus:border-[#0C97C4]"
+                        style={{ borderColor: COMPLIANCE.hairline, color: COMPLIANCE.ink }} />
+                </div>
+                <div>
+                    <label className="text-[9px] font-semibold uppercase tracking-[0.14em]" style={{ color: COMPLIANCE.muted }}>Vendor / description</label>
+                    <input type="text" value={draft.vendor}
+                        onChange={(e) => onChange({ vendor: e.target.value })}
+                        placeholder="Vendor"
+                        className="w-full mt-0.5 rounded-md border bg-white px-2 py-1.5 text-xs outline-none focus:border-[#0C97C4]"
+                        style={{ borderColor: COMPLIANCE.hairline, color: COMPLIANCE.ink }} />
+                </div>
+                <div>
+                    <label className="text-[9px] font-semibold uppercase tracking-[0.14em]" style={{ color: COMPLIANCE.muted }}>Category</label>
+                    <select value={draft.category_code}
+                        onChange={(e) => onChange({ category_code: e.target.value })}
+                        className="w-full mt-0.5 rounded-md border bg-white px-2 py-1.5 text-xs outline-none focus:border-[#0C97C4]"
+                        style={{ borderColor: COMPLIANCE.hairline, color: COMPLIANCE.ink }}>
+                        {categories.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="text-[9px] font-semibold uppercase tracking-[0.14em]" style={{ color: COMPLIANCE.muted }}>Amount (₹)</label>
+                    <input type="number" min={0} step="0.01" value={draft.amount_rupees}
+                        onChange={(e) => onChange({ amount_rupees: Number(e.target.value) || 0 })}
+                        className="w-full mt-0.5 rounded-md border bg-white px-2 py-1.5 text-xs outline-none focus:border-[#0C97C4] tabular-nums"
+                        style={{ borderColor: COMPLIANCE.hairline, color: COMPLIANCE.ink }} />
+                </div>
+                <div>
+                    <label className="text-[9px] font-semibold uppercase tracking-[0.14em]" style={{ color: COMPLIANCE.muted }}>GST (₹)</label>
+                    <input type="number" min={0} step="0.01" value={draft.gst_rupees}
+                        onChange={(e) => onChange({ gst_rupees: Number(e.target.value) || 0 })}
+                        className="w-full mt-0.5 rounded-md border bg-white px-2 py-1.5 text-xs outline-none focus:border-[#0C97C4] tabular-nums"
+                        style={{ borderColor: COMPLIANCE.hairline, color: COMPLIANCE.ink }} />
+                </div>
+            </div>
         </div>
     );
 }

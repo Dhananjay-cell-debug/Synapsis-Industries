@@ -19,6 +19,29 @@ import {
 import { supabase } from "@/lib/supabase";
 import { SYNAPSIS_CONFIG, formatBankInstructions } from "@/lib/synapsis-config";
 import { PHASE_NAMES, PAYMENT_SPLIT } from "@/lib/phases/constants";
+import { getBusinessTaxProfile } from "@/lib/compliance/business-profile";
+import { classifyGstTreatment } from "@/lib/compliance/tax-engine";
+import { RULE_VERSION } from "@/lib/compliance/constants";
+import type { BusinessTaxProfile, RecipientType } from "@/lib/compliance/types";
+
+// ─── Tax breakdown computed once, used for PDF + snapshot ─────────────────
+
+interface InvoiceTaxBreakdown {
+    baseMinor: number;           // pre-GST taxable value (in invoice currency minor units)
+    cgstMinor: number;
+    sgstMinor: number;
+    igstMinor: number;
+    totalGstMinor: number;       // cgst + sgst + igst
+    totalMinor: number;          // base + totalGstMinor (== payment.amount_paise for non-zero-rated)
+    gstRate: number;             // 0 | 18
+    treatment: string;           // synapsis.invoice_tax_snapshot.treatment values
+    treatmentReason: string;
+    placeOfSupply: string;
+    zeroRated: boolean;
+    sacCode: string;
+    ruleVersion: string;
+    gstinDisplay: string;
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -136,8 +159,19 @@ export async function generateAndPersistInvoice(args: GenerateInvoiceArgs) {
 
     const currency: "INR" | "USD" = (payment.currency === "USD" ? "USD" : "INR");
     const provider: string = payment.provider || "razorpay";
+    const totalMinor: number = payment.amount_minor || payment.amount_paise;
 
-    // Render PDF
+    // ─── NEW: tax breakdown (reverse-computed from charged total) ─────────
+    const profile = await getBusinessTaxProfile();
+    const { data: clientProfile } = await supabase
+        .from("client_tax_profile")
+        .select("*")
+        .eq("deal_token", args.dealToken)
+        .maybeSingle();
+
+    const breakdown = computeTaxBreakdown(totalMinor, currency, profile, clientProfile);
+
+    // Render PDF (with breakdown)
     const pdfBuffer = await renderInvoicePdf({
         invoiceNumber,
         currency,
@@ -149,7 +183,7 @@ export async function generateAndPersistInvoice(args: GenerateInvoiceArgs) {
         },
         payment: {
             phase: payment.phase as 3 | 4 | 6,
-            amountMinor: payment.amount_minor || payment.amount_paise,
+            amountMinor: totalMinor,
             tdsReceivedPaise: payment.tds_received_paise || 0,
             method: payment.method || provider,
             provider,
@@ -157,9 +191,10 @@ export async function generateAndPersistInvoice(args: GenerateInvoiceArgs) {
             stripePaymentIntentId: payment.stripe_payment_intent_id,
             paidAt: payment.paid_at,
         },
+        taxBreakdown: breakdown,
     });
 
-    // Persist
+    // Persist invoice
     const row = await createInvoice({
         invoiceNumber,
         dealToken: args.dealToken,
@@ -175,7 +210,105 @@ export async function generateAndPersistInvoice(args: GenerateInvoiceArgs) {
         metadata: { totalPriceMajor: deal.totalPrice, percentage: payment.percentage, currency, provider },
     });
 
+    // ─── NEW: stamp immutable tax snapshot (idempotent via UNIQUE(invoice_id)) ─
+    try {
+        await supabase.from("invoice_tax_snapshot").insert({
+            invoice_id: row.id,
+            invoice_currency: currency,
+            taxable_value_minor: breakdown.baseMinor,
+            cgst_amount_minor: breakdown.cgstMinor,
+            sgst_amount_minor: breakdown.sgstMinor,
+            igst_amount_minor: breakdown.igstMinor,
+            total_tax_minor: breakdown.totalGstMinor,
+            total_invoice_minor: breakdown.totalMinor,
+            gst_rate: breakdown.gstRate,
+            sac_code: breakdown.sacCode,
+            place_of_supply: breakdown.placeOfSupply,
+            treatment: breakdown.treatment,
+            treatment_reason: breakdown.treatmentReason,
+            zero_rated: breakdown.zeroRated,
+            reverse_charge: false,
+            rule_version: breakdown.ruleVersion,
+        });
+    } catch (e) {
+        // Append-only; if a snapshot already exists (concurrent), supabase will throw.
+        console.warn("[invoice] tax snapshot insert skipped:", e instanceof Error ? e.message : e);
+    }
+
     return row;
+}
+
+// ─── Tax breakdown computation ────────────────────────────────────────────
+// Treats `totalMinor` as the GST-INCLUSIVE total (what was actually charged).
+// Reverse-computes base + GST per the classifier's treatment.
+
+function computeTaxBreakdown(
+    totalMinor: number,
+    currency: "INR" | "USD",
+    profile: BusinessTaxProfile,
+    clientProfile: Record<string, unknown> | null,
+): InvoiceTaxBreakdown {
+    const isInternational = currency === "USD"
+        || (clientProfile?.billing_country && clientProfile.billing_country !== "India");
+
+    // Recipient type (best-effort default)
+    let recipient: RecipientType;
+    if (clientProfile?.recipient_type) {
+        recipient = clientProfile.recipient_type as RecipientType;
+    } else if (isInternational) {
+        recipient = "international_business";
+    } else {
+        recipient = "indian_unregistered";
+    }
+
+    // Compute base: if GST applies, reverse from total; else base = total.
+    const willCarryGst = !isInternational || (isInternational && !profile.lut_active);
+    const baseMinor = willCarryGst ? Math.round((totalMinor * 100) / 118) : totalMinor;
+
+    const classification = classifyGstTreatment({
+        business: {
+            address_state: profile.address_state,
+            lut_active: profile.lut_active,
+            gstin: profile.gstin,
+        },
+        client: {
+            recipient_type: recipient,
+            billing_state: (clientProfile?.billing_state as string | null) ?? null,
+            billing_country: (clientProfile?.billing_country as string) ?? (isInternational ? "Outside India" : "India"),
+            client_gstin: (clientProfile?.client_gstin as string | null) ?? null,
+            place_of_supply: null,
+        },
+        invoice_currency: currency,
+        taxable_value_minor: baseMinor,
+    });
+
+    const cgst = classification.cgst_amount_minor;
+    const sgst = classification.sgst_amount_minor;
+    const igst = classification.igst_amount_minor;
+    const totalGst = cgst + sgst + igst;
+    // Snap total to the charged amount (within ₹1 rounding tolerance)
+    const total = baseMinor + totalGst;
+
+    const gstinDisplay = profile.gstin
+        ? profile.gstin
+        : (profile.gst_application_arn ? `ARN: ${profile.gst_application_arn} (GSTIN pending)` : "Not Applicable (pending)");
+
+    return {
+        baseMinor,
+        cgstMinor: cgst,
+        sgstMinor: sgst,
+        igstMinor: igst,
+        totalGstMinor: totalGst,
+        totalMinor: total,
+        gstRate: classification.gst_rate,
+        treatment: classification.treatment,
+        treatmentReason: classification.treatment_reason,
+        placeOfSupply: classification.place_of_supply,
+        zeroRated: classification.zero_rated,
+        sacCode: classification.sac_code,
+        ruleVersion: RULE_VERSION,
+        gstinDisplay,
+    };
 }
 
 // ─── PDF Renderer ──────────────────────────────────────────────────────────
@@ -186,7 +319,7 @@ interface RenderArgs {
     deal: { token: string; name: string; company: string; need: string };
     payment: {
         phase: 3 | 4 | 6;
-        amountMinor?: number;                      // canonical (paise|cents)
+        amountMinor?: number;                      // canonical (paise|cents) — GST-inclusive total
         amountPaise?: number;                      // legacy alias
         tdsReceivedPaise: number;
         method: string;
@@ -195,6 +328,7 @@ interface RenderArgs {
         stripePaymentIntentId?: string | null;
         paidAt: string | null;
     };
+    taxBreakdown?: InvoiceTaxBreakdown;             // optional; if absent, falls back to legacy single-line summary
 }
 
 export async function renderInvoicePdf(args: RenderArgs): Promise<Buffer> {
@@ -277,7 +411,13 @@ export async function renderInvoicePdf(args: RenderArgs): Promise<Buffer> {
 
     drawText(ctx, `PAN: XXXXX${SYNAPSIS_CONFIG.panLast4}    Udyam: ${SYNAPSIS_CONFIG.udyamRegistration}`, 40, y, { size: 8, color: colors.muted });
     y -= 12;
-    if (isUSD) {
+    if (args.taxBreakdown) {
+        const tb = args.taxBreakdown;
+        const gstinLine = tb.zeroRated
+            ? `GSTIN: ${tb.gstinDisplay}    ·    Place of Supply: ${tb.placeOfSupply}  ·  Export of Services (LUT — Zero-rated)`
+            : `GSTIN: ${tb.gstinDisplay}    ·    Place of Supply: ${tb.placeOfSupply}  ·  SAC ${tb.sacCode}`;
+        drawText(ctx, gstinLine, 40, y, { size: 8, color: colors.muted });
+    } else if (isUSD) {
         drawText(ctx, "Place of Supply: Outside India  ·  Export of Services (LUT — Zero-rated)", 40, y, { size: 8, color: colors.muted });
     } else {
         drawText(ctx, `GSTIN: ${SYNAPSIS_CONFIG.gstin || "Not Applicable (Sole Proprietor — below Rs.20L threshold)"}`, 40, y, { size: 8, color: colors.muted });
@@ -319,19 +459,48 @@ export async function renderInvoicePdf(args: RenderArgs): Promise<Buffer> {
 
     // ─── SUMMARY ───────────────────────────────────────────────────────────
     const tdsLine = !isUSD && tdsMinor > 0;
+    const tb = args.taxBreakdown;
 
-    drawText(ctx, "Subtotal", 380, y, { size: 10, color: colors.muted });
-    drawText(ctx, fmt(amountMinor), 480, y, { size: 10 });
-    y -= 14;
+    if (tb) {
+        // Base / taxable subtotal (pre-GST)
+        drawText(ctx, "Taxable amount", 380, y, { size: 10, color: colors.muted });
+        drawText(ctx, fmt(tb.baseMinor), 480, y, { size: 10 });
+        y -= 14;
 
-    if (isUSD) {
-        drawText(ctx, "GST / IGST", 380, y, { size: 10, color: colors.muted });
-        drawText(ctx, "0% (Export — LUT)", 480, y, { size: 10, color: colors.muted });
+        if (tb.zeroRated) {
+            drawText(ctx, "GST (zero-rated, LUT)", 380, y, { size: 10, color: colors.muted });
+            drawText(ctx, "0.00", 480, y, { size: 10, color: colors.muted });
+            y -= 14;
+        } else if (tb.cgstMinor > 0 && tb.sgstMinor > 0) {
+            drawText(ctx, `CGST 9%`, 380, y, { size: 10, color: colors.muted });
+            drawText(ctx, fmt(tb.cgstMinor), 480, y, { size: 10 });
+            y -= 14;
+            drawText(ctx, `SGST 9%`, 380, y, { size: 10, color: colors.muted });
+            drawText(ctx, fmt(tb.sgstMinor), 480, y, { size: 10 });
+            y -= 14;
+        } else if (tb.igstMinor > 0) {
+            drawText(ctx, `IGST ${tb.gstRate}%`, 380, y, { size: 10, color: colors.muted });
+            drawText(ctx, fmt(tb.igstMinor), 480, y, { size: 10 });
+            y -= 14;
+        } else {
+            drawText(ctx, "GST", 380, y, { size: 10, color: colors.muted });
+            drawText(ctx, "Not Applicable", 480, y, { size: 10, color: colors.muted });
+            y -= 14;
+        }
     } else {
-        drawText(ctx, "GST", 380, y, { size: 10, color: colors.muted });
-        drawText(ctx, "Not Applicable", 480, y, { size: 10, color: colors.muted });
+        // ── Legacy fallback (no breakdown — for old/test invoices) ──
+        drawText(ctx, "Subtotal", 380, y, { size: 10, color: colors.muted });
+        drawText(ctx, fmt(amountMinor), 480, y, { size: 10 });
+        y -= 14;
+        if (isUSD) {
+            drawText(ctx, "GST / IGST", 380, y, { size: 10, color: colors.muted });
+            drawText(ctx, "0% (Export — LUT)", 480, y, { size: 10, color: colors.muted });
+        } else {
+            drawText(ctx, "GST", 380, y, { size: 10, color: colors.muted });
+            drawText(ctx, "Not Applicable", 480, y, { size: 10, color: colors.muted });
+        }
+        y -= 14;
     }
-    y -= 14;
 
     if (tdsLine) {
         drawText(ctx, "TDS Deducted (by Client)", 380, y, { size: 10, color: colors.muted });
