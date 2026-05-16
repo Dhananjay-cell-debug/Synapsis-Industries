@@ -44,7 +44,8 @@ export default function IgnitionAdminView({ deal, adminEmail, onUpdated }: Props
 
     const required = checklist.filter(a => a.required);
     const requiredSubmitted = required.filter(a => a.submitted).length;
-    const allRequiredSubmitted = required.length > 0 && requiredSubmitted === required.length;
+    // Empty required set = nothing to wait for. Gate must pass.
+    const allRequiredSubmitted = required.length === 0 || requiredSubmitted === required.length;
     const canConfirm = advancePaid && allRequiredSubmitted;
 
     const [confirmBusy, setConfirmBusy] = useState(false);

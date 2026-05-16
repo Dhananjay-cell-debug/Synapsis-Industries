@@ -62,7 +62,7 @@ export default function SynLauncher({ token, clientName, phase, mode = "client" 
                         onMouseEnter={() => setHovered("chat")}
                         onMouseLeave={() => setHovered(null)}
                         tooltipVisible={hovered === "chat"}
-                        tooltipLabel={mode === "admin" ? "Strategy console" : "Need help?"}
+                        tooltipLabel="Need help?"
                         badge={unread}
                     >
                         <MessageCircle size={18} strokeWidth={2.2} />

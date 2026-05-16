@@ -12,6 +12,9 @@ import {
     X, MessageSquareWarning, AlertCircle, ChevronLeft, CheckCircle,
     Clock, Activity, Bell,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 const SOFT_CYAN = "#7DD3FC";
 const ACCENT_DEEP = "#0284C7";
@@ -205,9 +208,11 @@ export default function MyRaisesPanel({ token, onClose, onRead }: Props) {
                                     <span className="text-slate-400 text-[10px]">{fmt(openItem.created_at)}</span>
                                 </div>
                                 <p className="text-[10px] tracking-[0.2em] uppercase text-slate-500 font-semibold mb-1">Your description</p>
-                                <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-wrap p-3 rounded-lg" style={{ background: "#F8FAFC", border: `1px solid ${SOFT_CYAN}30` }}>
-                                    {openItem.description}
-                                </p>
+                                <div className="text-slate-800 text-xs leading-relaxed p-3 rounded-lg" style={{ background: "#F8FAFC", border: `1px solid ${SOFT_CYAN}30` }}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                                        {openItem.description}
+                                    </ReactMarkdown>
+                                </div>
                             </div>
 
                             <div>
@@ -227,7 +232,11 @@ export default function MyRaisesPanel({ token, onClose, onRead }: Props) {
                                                     {r.kind === "reply" && "Reply"}
                                                     {" · "}{fmt(r.created_at)}
                                                 </p>
-                                                <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-wrap">{r.body}</p>
+                                                <div className="text-slate-800 text-xs leading-relaxed">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                                                        {r.body}
+                                                    </ReactMarkdown>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

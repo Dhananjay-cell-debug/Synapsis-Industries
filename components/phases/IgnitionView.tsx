@@ -47,7 +47,8 @@ export default function IgnitionView({ deal, onUpdated }: Props) {
 
     const required = checklist.filter(a => a.required);
     const requiredSubmitted = required.filter(a => a.submitted).length;
-    const allRequiredDone = required.length > 0 && requiredSubmitted === required.length;
+    // Empty required set = nothing to submit. Treat as done.
+    const allRequiredDone = required.length === 0 || requiredSubmitted === required.length;
 
     const refreshDeal = async () => {
         const res = await fetch(`/api/deals?token=${deal.token}`);

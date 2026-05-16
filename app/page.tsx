@@ -200,11 +200,15 @@ export default function Home() {
                 <div className="fixed inset-0 z-[1] pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(17,184,234,0.04) 0%, transparent 40%, transparent 60%, rgba(59,106,232,0.06) 100%)" }} />
                 <div className="fixed inset-0 z-[2] pointer-events-none opacity-[0.04]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: "128px 128px" }} />
 
-                {/* Spacer: gives the cave + ticker peel ~6.75vh of scroll runway */}
-                <section className="w-full pointer-events-none" style={{ height: "675vh" }} />
+                {/* Spacer: cave runway (0→6vh). At scrollY=6vh the homepage's top
+                    aligns with viewport top — it then sits BEHIND the ticker (z-10 < ticker z-11)
+                    while the ticker peels over it during 6→6.75vh. */}
+                <section className="w-full pointer-events-none" style={{ height: "600vh" }} />
 
-                {/* New homepage — natural-flow content starts here */}
+                {/* New homepage — natural-flow content. Top 75vh is a cream pad so
+                    the peel reveals the cream backdrop, not the manifesto headline being scrolled. */}
                 <div className="relative z-10 w-full pointer-events-auto">
+                    <div style={{ height: "75vh", background: "#FAF9F6" }} />
                     <SynapsisHomepage />
                 </div>
             </main>
