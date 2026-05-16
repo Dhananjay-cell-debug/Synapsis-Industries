@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircle, Phone } from "lucide-react";
 import SynChatPanel from "./SynChatPanel";
+import SynVoicePanel from "./SynVoicePanel";
 
 interface Props {
     token?: string;
@@ -22,9 +23,9 @@ const ACCENT_VOICE = "#3B6AE8";  // royal blue — voice button
 
 export default function SynLauncher({ token, clientName, phase, mode = "client" }: Props) {
     const [chatOpen, setChatOpen] = useState(false);
+    const [voiceOpen, setVoiceOpen] = useState(false);
     const [hovered, setHovered] = useState<null | "chat" | "voice">(null);
     const [unread, setUnread] = useState(0);
-    const [voiceToast, setVoiceToast] = useState(false);
 
     useEffect(() => {
         if (mode !== "client" || !token) return;
@@ -43,8 +44,7 @@ export default function SynLauncher({ token, clientName, phase, mode = "client" 
     }, [token, mode]);
 
     function onVoiceClick() {
-        setVoiceToast(true);
-        setTimeout(() => setVoiceToast(false), 2400);
+        setVoiceOpen(true);
     }
 
     // Lift FAB above the sidebar bottom card (Switch Account on client,
@@ -84,20 +84,6 @@ export default function SynLauncher({ token, clientName, phase, mode = "client" 
                 </div>
             </div>
 
-            {/* Voice agent quick toast (v2 not built yet) */}
-            <AnimatePresence>
-                {voiceToast && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-                        className={`fixed ${mode === "admin" ? "bottom-[170px]" : "bottom-[150px]"} left-5 z-[85] pointer-events-none`}
-                    >
-                        <div className="px-3 py-2 rounded-lg bg-[#0A0F1E]/95 border border-white/15 backdrop-blur-xl shadow-2xl">
-                            <p className="text-white/85 text-[11px] font-medium tracking-wide">Voice agent — landing in v2.</p>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
             {/* Slide-in chat panel */}
             <AnimatePresence>
                 {chatOpen && (
@@ -108,6 +94,19 @@ export default function SynLauncher({ token, clientName, phase, mode = "client" 
                         phase={phase}
                         onClose={() => setChatOpen(false)}
                         onRaisedResolved={() => setUnread(0)}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Full-screen voice panel */}
+            <AnimatePresence>
+                {voiceOpen && (
+                    <SynVoicePanel
+                        mode={mode}
+                        token={token}
+                        clientName={clientName}
+                        phase={phase}
+                        onClose={() => setVoiceOpen(false)}
                     />
                 )}
             </AnimatePresence>
