@@ -1,16 +1,24 @@
 "use client";
 
 // ─── SYN VOICE PANEL ──────────────────────────────────────────────────────
-// Full-screen voice conversation overlay. Reuses /api/syn/chat/[token]
-// for the brain. Browser Web Speech API for STT + speechSynthesis for TTS.
-// Cloned XTTS voice will swap in at Sprint 1.5 by replacing speakViaBrowser
-// with a fetch to /api/voice/tts that returns Dhananjay's cloned WAV.
+// Calling-style slide-in drawer (right side, ~440px). Reuses /api/syn/chat/[token].
+//
+// Behavior:
+//   - Auto-connects on mount: requests mic, starts continuous STT + VAD
+//   - Hands-free: user can just talk. VAD detects voice start (barge-in
+//     interrupts Syn's TTS) and voice end (silence → auto-submit to brain)
+//   - Markdown stripped before TTS so asterisks/hashes aren't read literally
+//   - Premium calling layout: avatar + live timer + mute / end / speaker
+//
+// Cloned voice swap point: replace drainTTS() to fetch /api/voice/tts
+// (returns WAV/MP3 in Dhananjay's cloned voice) once XTTS-v2 or ElevenLabs
+// is wired into the backend. Sprint 1.5 / 2.
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mic, MicOff, Volume2, VolumeX, Settings2, Sparkles } from "lucide-react";
+import { Mic, MicOff, PhoneOff, Volume2, VolumeX, Settings2, Sparkles, X } from "lucide-react";
 
-type State = "idle" | "listening" | "thinking" | "speaking" | "error";
+type State = "connecting" | "idle" | "listening" | "thinking" | "speaking" | "ended" | "error";
 
 interface Msg { role: "user" | "assistant"; content: string; }
 
@@ -24,32 +32,109 @@ interface Props {
 
 const AZURE = "#11B8EA";
 const ROYAL = "#3B6AE8";
-
-// Sentence-boundary regex — flushes buffer to TTS queue when matched
 const SENTENCE_END = /([.!?।]|\n\n)\s*$/;
+
+// VAD tuning — tested for built-in laptop mic with echoCancellation on
+const VOICE_THRESHOLD = 0.022;                 // RMS to detect voice (idle/speaking → listening)
+const VOICE_THRESHOLD_WHILE_SPEAKING = 0.045;  // higher bar during TTS playback (echo bleed)
+const VOICE_MIN_DURATION_MS = 220;             // sustained voice needed to confirm (avoid clicks/pops)
+const SILENCE_TIMEOUT_MS = 1200;               // silence after speech → end of utterance
+
+// Strip all markdown / emoji noise before TTS so it doesn't speak asterisks aloud
+function stripForVoice(text: string): string {
+    return text
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\*\*\*([^*]+)\*\*\*/g, "$1")
+        .replace(/\*\*([^*]+)\*\*/g, "$1")
+        .replace(/__([^_]+)__/g, "$1")
+        .replace(/\*([^*\s][^*]*?[^*\s]|\S)\*/g, "$1")
+        .replace(/(?<!\w)_([^_\s][^_]*?[^_\s]|\S)_(?!\w)/g, "$1")
+        .replace(/^#{1,6}\s+/gm, "")
+        .replace(/^>\s+/gm, "")
+        .replace(/^\s*[-*+]\s+/gm, "")
+        .replace(/^\s*\d+\.\s+/gm, "")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+        .replace(/([\uD800-\uDBFF][\uDC00-\uDFFF])|[☀-➿]/g, "")
+        .replace(/---+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/[ \t]+/g, " ")
+        .trim();
+}
 
 export default function SynVoicePanel({ mode, token, clientName, phase, onClose }: Props) {
     const isClient = mode === "client";
     const apiBase = isClient ? `/api/syn/chat/${token}` : `/api/syn/admin-chat`;
 
-    const [state, setState] = useState<State>("idle");
+    const [state, setState] = useState<State>("connecting");
+    const [muted, setMuted] = useState(false);
+    const [speakerOn, setSpeakerOn] = useState(true);
     const [sessionId, setSessionId] = useState<string | null>(null);
-    const [transcript, setTranscript] = useState("");        // live STT transcript
-    const [pendingTranscript, setPendingTranscript] = useState(""); // partial
-    const [reply, setReply] = useState("");                  // current assistant reply
-    const [history, setHistory] = useState<Msg[]>([]);       // running session
-    const [ttsEnabled, setTtsEnabled] = useState(true);
+    const [history, setHistory] = useState<Msg[]>([]);
+    const [reply, setReply] = useState("");
+    const [interim, setInterim] = useState("");
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [callStart, setCallStart] = useState<number | null>(null);
+    const [callTimer, setCallTimer] = useState(0);
     const [voiceList, setVoiceList] = useState<SpeechSynthesisVoice[]>([]);
     const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("");
     const [showSettings, setShowSettings] = useState(false);
 
+    // Mutable refs — survive re-renders, used inside callbacks/loops
+    const stateRef = useRef<State>("connecting");
+    const mutedRef = useRef(false);
+    const speakerOnRef = useRef(true);
+    const streamRef = useRef<MediaStream | null>(null);
+    const audioCtxRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const vadRafRef = useRef<number | null>(null);
     const recognitionRef = useRef<any>(null);
+    const restartRecRef = useRef<boolean>(true);
+    const transcriptRef = useRef<string>("");
+    const voiceActiveRef = useRef<boolean>(false);
+    const voiceStartTsRef = useRef<number>(0);
+    const lastVoiceTsRef = useRef<number>(0);
     const ttsQueueRef = useRef<string[]>([]);
     const speakingRef = useRef<boolean>(false);
     const abortRef = useRef<AbortController | null>(null);
+    const submittedRef = useRef<boolean>(false);
 
-    // ─── Load existing session messages on mount ─────────────────────────
+    // Mirror state into refs so loops/callbacks read current values
+    useEffect(() => { stateRef.current = state; }, [state]);
+    useEffect(() => { mutedRef.current = muted; }, [muted]);
+    useEffect(() => { speakerOnRef.current = speakerOn; }, [speakerOn]);
+
+    // Call timer tick
+    useEffect(() => {
+        if (!callStart) return;
+        const iv = setInterval(() => setCallTimer(Math.floor((Date.now() - callStart) / 1000)), 1000);
+        return () => clearInterval(iv);
+    }, [callStart]);
+
+    // Load system TTS voices, prefer Indian English male
+    useEffect(() => {
+        if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+        const load = () => {
+            const voices = window.speechSynthesis.getVoices();
+            setVoiceList(voices);
+            const preferred =
+                voices.find(v => /en-IN.*male/i.test(v.name + " " + v.lang)) ||
+                voices.find(v => /Ravi|Hemant|Heera/i.test(v.name)) ||
+                voices.find(v => /en-IN/i.test(v.lang)) ||
+                voices.find(v => /Indian/i.test(v.name)) ||
+                voices.find(v => /male/i.test(v.name) && /en/i.test(v.lang)) ||
+                voices.find(v => /en/i.test(v.lang)) ||
+                voices[0];
+            if (preferred && !selectedVoiceURI) setSelectedVoiceURI(preferred.voiceURI);
+        };
+        load();
+        window.speechSynthesis.onvoiceschanged = load;
+        return () => { if ("speechSynthesis" in window) window.speechSynthesis.onvoiceschanged = null; };
+    }, [selectedVoiceURI]);
+
+    // Load existing session history
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -67,78 +152,43 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
         return () => { cancelled = true; };
     }, [apiBase]);
 
-    // ─── Discover available system voices ─────────────────────────────────
-    useEffect(() => {
-        if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-        const load = () => {
-            const voices = window.speechSynthesis.getVoices();
-            setVoiceList(voices);
-            // Prefer Indian English male voice if available
-            const preferred =
-                voices.find(v => /en-IN.*Male/i.test(v.name + v.lang)) ||
-                voices.find(v => /en-IN/i.test(v.lang)) ||
-                voices.find(v => /Indian/i.test(v.name)) ||
-                voices.find(v => /Male/i.test(v.name) && /en/i.test(v.lang)) ||
-                voices.find(v => /en/i.test(v.lang)) ||
-                voices[0];
-            if (preferred && !selectedVoiceURI) setSelectedVoiceURI(preferred.voiceURI);
-        };
-        load();
-        window.speechSynthesis.onvoiceschanged = load;
-        return () => { if ("speechSynthesis" in window) window.speechSynthesis.onvoiceschanged = null; };
-    }, [selectedVoiceURI]);
-
-    // ─── Cleanup on unmount ───────────────────────────────────────────────
-    useEffect(() => {
-        return () => {
-            try { recognitionRef.current?.stop?.(); } catch {}
-            try { window.speechSynthesis?.cancel?.(); } catch {}
-            abortRef.current?.abort();
-        };
-    }, []);
-
-    // ─── TTS queue: enqueue + auto-drain by chaining utterance.onend ──────
+    // ─── TTS queue: chain utterances via onend ───────────────────────────
     const drainTTS = useCallback(() => {
         if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-        if (speakingRef.current) return; // already speaking; chain handles next
-        const next = ttsQueueRef.current.shift();
-        if (!next) {
-            // Queue drained — only flip to idle if not currently in another state
+        if (!speakerOnRef.current) {
+            ttsQueueRef.current = [];
+            speakingRef.current = false;
             setState(s => (s === "speaking" ? "idle" : s));
             return;
         }
-        const u = new SpeechSynthesisUtterance(next);
+        if (speakingRef.current) return;
+        const next = ttsQueueRef.current.shift();
+        if (!next) {
+            setState(s => (s === "speaking" ? "idle" : s));
+            return;
+        }
+        const clean = stripForVoice(next);
+        if (!clean || clean.length < 1) { drainTTS(); return; }
+        const u = new SpeechSynthesisUtterance(clean);
         const v = voiceList.find(x => x.voiceURI === selectedVoiceURI);
         if (v) u.voice = v;
         u.rate = 1.0; u.pitch = 1.0; u.volume = 1.0;
         u.onstart = () => { speakingRef.current = true; setState("speaking"); };
-        u.onend = () => {
-            speakingRef.current = false;
-            // Chain next chunk without setTimeout flicker
-            drainTTS();
-        };
-        u.onerror = (e) => {
-            console.error("[voice tts]", e);
-            speakingRef.current = false;
-            drainTTS();
-        };
-        window.speechSynthesis.speak(u);
+        u.onend = () => { speakingRef.current = false; drainTTS(); };
+        u.onerror = () => { speakingRef.current = false; drainTTS(); };
+        try { window.speechSynthesis.speak(u); }
+        catch { speakingRef.current = false; drainTTS(); }
     }, [voiceList, selectedVoiceURI]);
 
-    const enqueueTTS = useCallback((text: string) => {
-        if (!ttsEnabled || !text.trim()) return;
-        ttsQueueRef.current.push(text);
-        drainTTS();
-    }, [drainTTS, ttsEnabled]);
-
-    // ─── Send a message to the brain and stream the reply ─────────────────
+    // ─── Submit accumulated transcript to brain, stream reply ────────────
     const sendToSyn = useCallback(async (userText: string) => {
         const text = userText.trim();
-        if (!text) return;
+        if (!text || submittedRef.current) return;
+        submittedRef.current = true;
 
-        // Push user turn to UI history immediately
         setHistory(h => [...h, { role: "user", content: text }]);
         setReply("");
+        setInterim("");
         setState("thinking");
         setErrorMsg(null);
 
@@ -170,383 +220,586 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
                 const { value, done } = await reader.read();
                 if (done) break;
                 raw += decoder.decode(value, { stream: true });
+                const events = raw.split("\n\n");
+                raw = events.pop() || "";
 
-                const lines = raw.split("\n");
-                raw = lines.pop() || "";
-
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line.startsWith("event:") && !line.startsWith("data:")) continue;
-                    if (line.startsWith("event:")) {
-                        // event-only lines; next iteration carries data
-                        continue;
+                for (const ev of events) {
+                    const lines = ev.split("\n");
+                    let evt = ""; let dataLine = "";
+                    for (const ln of lines) {
+                        if (ln.startsWith("event:")) evt = ln.slice(6).trim();
+                        if (ln.startsWith("data:")) dataLine = ln.slice(5).trim();
                     }
-                    const payload = line.slice(5).trim();
-                    try {
-                        const parsed = JSON.parse(payload);
-                        if (parsed.sessionId && !sessionId) setSessionId(parsed.sessionId);
-                        if (typeof parsed.delta === "string") {
-                            accumulated += parsed.delta;
-                            buffer += parsed.delta;
-                            setReply(prev => prev + parsed.delta);
+                    if (!dataLine) continue;
+                    let parsed: any = null;
+                    try { parsed = JSON.parse(dataLine); } catch { continue; }
+                    if (evt === "session" && parsed?.sessionId) setSessionId(parsed.sessionId);
+                    if (evt === "token" && typeof parsed?.delta === "string") {
+                        accumulated += parsed.delta;
+                        buffer += parsed.delta;
+                        setReply(prev => prev + parsed.delta);
 
-                            // Flush buffer to TTS on sentence boundary
-                            if (SENTENCE_END.test(buffer) && buffer.trim().length > 6) {
-                                enqueueTTS(buffer);
-                                buffer = "";
-                            }
+                        // Flush buffer to TTS on sentence boundary
+                        if (SENTENCE_END.test(buffer) && stripForVoice(buffer).length > 4) {
+                            ttsQueueRef.current.push(buffer);
+                            buffer = "";
+                            drainTTS();
                         }
-                    } catch { /* malformed chunk, skip */ }
+                    }
+                    if (evt === "error") throw new Error(parsed?.error || "Stream error");
                 }
             }
 
-            // Flush final tail
+            // Flush remaining buffer
             if (buffer.trim().length > 0) {
-                enqueueTTS(buffer);
+                ttsQueueRef.current.push(buffer);
+                drainTTS();
             }
 
-            // Commit assistant turn to history
             setHistory(h => [...h, { role: "assistant", content: accumulated || "(no response)" }]);
 
-            // If TTS disabled, jump straight to idle
-            if (!ttsEnabled) setState("idle");
-            // Otherwise speaking state will transition itself when queue drains
+            // If speaker is off, jump to idle immediately
+            if (!speakerOnRef.current) {
+                setState(s => (s === "thinking" || s === "speaking" ? "idle" : s));
+            } else if (ttsQueueRef.current.length === 0 && !speakingRef.current) {
+                setState(s => (s === "thinking" ? "idle" : s));
+            }
         } catch (e: any) {
-            if (e?.name === "AbortError") return;
+            if (e?.name === "AbortError") { submittedRef.current = false; return; }
             console.error("[voice send]", e);
             setErrorMsg(String(e?.message || e).slice(0, 240));
             setState("error");
+            setTimeout(() => setState("idle"), 2000);
+        } finally {
+            submittedRef.current = false;
         }
-    }, [apiBase, sessionId, enqueueTTS, ttsEnabled]);
+    }, [apiBase, sessionId, drainTTS]);
 
-    // ─── Start / stop microphone (Web Speech API) ─────────────────────────
-    const startListening = useCallback(() => {
-        if (typeof window === "undefined") return;
-        const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SR) {
-            setErrorMsg("Speech recognition not supported in this browser. Use Chrome or Edge.");
-            setState("error");
-            return;
-        }
+    // Keep latest sendToSyn in a ref so VAD loop can call it without re-binding
+    const sendToSynRef = useRef(sendToSyn);
+    useEffect(() => { sendToSynRef.current = sendToSyn; }, [sendToSyn]);
 
-        // Cancel any TTS that may be playing
-        try { window.speechSynthesis?.cancel?.(); } catch {}
-        ttsQueueRef.current = [];
-        speakingRef.current = false;
+    // ─── Init: mic permissions, AudioContext, STT, VAD ───────────────────
+    useEffect(() => {
+        let cancelled = false;
 
-        const rec = new SR();
-        rec.lang = "en-IN";
-        rec.continuous = true;
-        rec.interimResults = true;
-
-        let finalText = "";
-        let lastInterim = "";
-
-        rec.onresult = (event: any) => {
-            let interim = "";
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const r = event.results[i];
-                if (r.isFinal) {
-                    finalText += r[0].transcript + " ";
-                } else {
-                    interim += r[0].transcript;
-                }
+        (async () => {
+            if (typeof window === "undefined") return;
+            const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!SR) {
+                setErrorMsg("Voice not supported in this browser. Use Chrome or Edge on desktop.");
+                setState("error");
+                return;
             }
-            lastInterim = interim;
-            setPendingTranscript(interim);
-            if (finalText) setTranscript(finalText);
-        };
 
-        rec.onerror = (e: any) => {
-            console.error("[voice stt]", e);
-            if (e.error === "no-speech") return; // benign
-            setErrorMsg(`Mic error: ${e.error}`);
-        };
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                });
+                if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+                streamRef.current = stream;
 
-        rec.onend = () => {
-            // Auto-finalize: send whatever was captured (closure-local, not React state)
-            const combined = (finalText + " " + lastInterim).trim();
-            setPendingTranscript("");
-            if (combined.length > 0) {
-                sendToSyn(combined);
-            } else {
+                const AC: any = (window.AudioContext || (window as any).webkitAudioContext);
+                const ctx: AudioContext = new AC();
+                const source = ctx.createMediaStreamSource(stream);
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 1024;
+                analyser.smoothingTimeConstant = 0.4;
+                source.connect(analyser);
+                audioCtxRef.current = ctx;
+                analyserRef.current = analyser;
+
+                // Start STT with auto-restart on end
+                const startRec = () => {
+                    if (!restartRecRef.current || cancelled) return;
+                    const rec = new SR();
+                    rec.lang = "en-IN";
+                    rec.continuous = true;
+                    rec.interimResults = true;
+
+                    rec.onresult = (event: any) => {
+                        const s = stateRef.current;
+                        // Only collect transcripts while we're listening / idle / speaking (for barge-in)
+                        if (s === "thinking" || s === "ended" || s === "connecting") return;
+
+                        let interimT = "";
+                        let finalT = "";
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            const r = event.results[i];
+                            if (r.isFinal) finalT += r[0].transcript + " ";
+                            else interimT += r[0].transcript;
+                        }
+                        if (finalT) {
+                            transcriptRef.current = (transcriptRef.current + " " + finalT).trim();
+                        }
+                        const combined = (transcriptRef.current + " " + interimT).trim();
+                        if (combined) setInterim(combined);
+                    };
+
+                    rec.onerror = (e: any) => {
+                        if (e.error === "no-speech" || e.error === "aborted") return;
+                        console.warn("[stt error]", e.error);
+                    };
+
+                    rec.onend = () => {
+                        recognitionRef.current = null;
+                        if (restartRecRef.current && !cancelled) {
+                            setTimeout(() => { try { startRec(); } catch { } }, 200);
+                        }
+                    };
+
+                    try { rec.start(); recognitionRef.current = rec; }
+                    catch { /* may throw "already started" — ignore */ }
+                };
+                startRec();
+
                 setState("idle");
+                setCallStart(Date.now());
+
+                // ─── VAD loop (runs at ~60fps via rAF) ───────────────────
+                const tick = () => {
+                    if (cancelled || !analyserRef.current) return;
+                    const a = analyserRef.current;
+                    const buf = new Float32Array(a.fftSize);
+                    a.getFloatTimeDomainData(buf);
+                    let sum = 0;
+                    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+                    const rms = Math.sqrt(sum / buf.length);
+
+                    const threshold = stateRef.current === "speaking"
+                        ? VOICE_THRESHOLD_WHILE_SPEAKING
+                        : VOICE_THRESHOLD;
+                    const now = performance.now();
+                    const isVoice = !mutedRef.current && rms > threshold;
+                    const s = stateRef.current;
+
+                    if (isVoice) {
+                        lastVoiceTsRef.current = now;
+                        if (!voiceActiveRef.current) {
+                            voiceStartTsRef.current = now;
+                            voiceActiveRef.current = true;
+                        }
+                        // Sustained voice → transition / barge-in
+                        if (now - voiceStartTsRef.current > VOICE_MIN_DURATION_MS) {
+                            if (s === "speaking") {
+                                // Barge-in: kill TTS, switch to listening
+                                ttsQueueRef.current = [];
+                                try { window.speechSynthesis.cancel(); } catch { }
+                                speakingRef.current = false;
+                                transcriptRef.current = "";
+                                setReply("");
+                                setState("listening");
+                            } else if (s === "idle") {
+                                setState("listening");
+                            }
+                        }
+                    } else {
+                        // Silence — if voice was active and quiet > timeout, end utterance
+                        if (voiceActiveRef.current && now - lastVoiceTsRef.current > SILENCE_TIMEOUT_MS) {
+                            voiceActiveRef.current = false;
+                            if (s === "listening") {
+                                const text = transcriptRef.current.trim();
+                                transcriptRef.current = "";
+                                if (text.length > 1) {
+                                    void sendToSynRef.current(text);
+                                } else {
+                                    setInterim("");
+                                    setState("idle");
+                                }
+                            }
+                        }
+                    }
+                    vadRafRef.current = requestAnimationFrame(tick);
+                };
+                vadRafRef.current = requestAnimationFrame(tick);
+            } catch (e: any) {
+                if (cancelled) return;
+                console.error("[voice init]", e);
+                setErrorMsg(e?.message?.includes("Permission")
+                    ? "Mic permission denied. Allow microphone in browser settings."
+                    : (e?.message || "Could not start voice"));
+                setState("error");
             }
-        };
+        })();
 
-        rec.start();
-        recognitionRef.current = rec;
-        setState("listening");
-        setTranscript("");
-        setPendingTranscript("");
-    }, [sendToSyn]);
-
-    const stopListening = useCallback(() => {
-        try { recognitionRef.current?.stop?.(); } catch {}
-    }, []);
-
-    const onMicToggle = useCallback(() => {
-        if (state === "listening") {
-            stopListening();
-        } else if (state === "speaking" || state === "thinking") {
-            // Interrupt — cancel TTS, abort fetch, start fresh listening
-            try { window.speechSynthesis?.cancel?.(); } catch {}
+        return () => {
+            cancelled = true;
+            restartRecRef.current = false;
+            if (vadRafRef.current) cancelAnimationFrame(vadRafRef.current);
+            try { recognitionRef.current?.stop?.(); } catch { }
+            streamRef.current?.getTracks().forEach(t => t.stop());
+            audioCtxRef.current?.close().catch(() => { });
+            try { window.speechSynthesis.cancel(); } catch { }
             ttsQueueRef.current = [];
             abortRef.current?.abort();
-            startListening();
-        } else {
-            startListening();
-        }
-    }, [state, startListening, stopListening]);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    // ─── State-driven copy ────────────────────────────────────────────────
-    const stateLabel: Record<State, string> = {
-        idle: "Tap to speak",
-        listening: "Listening...",
-        thinking: "Thinking...",
+    // ─── Controls ───────────────────────────────────────────────────────
+    const toggleMute = useCallback(() => {
+        setMuted(m => {
+            const next = !m;
+            if (streamRef.current) {
+                streamRef.current.getAudioTracks().forEach(t => (t.enabled = !next));
+            }
+            if (next) {
+                voiceActiveRef.current = false;
+                if (stateRef.current === "listening") setState("idle");
+            }
+            return next;
+        });
+    }, []);
+
+    const toggleSpeaker = useCallback(() => {
+        setSpeakerOn(s => {
+            const next = !s;
+            if (!next) {
+                try { window.speechSynthesis.cancel(); } catch { }
+                ttsQueueRef.current = [];
+                speakingRef.current = false;
+                setState(st => (st === "speaking" ? "idle" : st));
+            }
+            return next;
+        });
+    }, []);
+
+    const endCall = useCallback(() => {
+        setState("ended");
+        try { window.speechSynthesis.cancel(); } catch { }
+        ttsQueueRef.current = [];
+        abortRef.current?.abort();
+        restartRecRef.current = false;
+        try { recognitionRef.current?.stop?.(); } catch { }
+        setTimeout(() => onClose(), 280);
+    }, [onClose]);
+
+    // ─── Copy ───────────────────────────────────────────────────────────
+    const statusLine: Record<State, string> = {
+        connecting: "Connecting…",
+        idle: "Listening — just speak",
+        listening: "I'm hearing you…",
+        thinking: "Thinking",
         speaking: "Syn is speaking",
-        error: "Something broke",
+        ended: "Call ended",
+        error: errorMsg || "Connection issue",
     };
-    const stateSubtitle: Record<State, string> = {
-        idle: "Press the mic and ask anything",
-        listening: "Speak naturally — Hinglish welcome",
-        thinking: "Reading your deal state, formulating",
-        speaking: "Tap to interrupt",
-        error: errorMsg ?? "Tap to retry",
+    const statusSubtitle: Record<State, string> = {
+        connecting: "Allow mic when prompted",
+        idle: "Auto-listens. Mute mic if you want a break.",
+        listening: "Pause for ~1 sec to send",
+        thinking: "Reading your deal state",
+        speaking: "Just talk over — I'll stop",
+        ended: "",
+        error: "Reopen voice agent to retry",
+    };
+
+    const fmtTime = (s: number) => {
+        const m = Math.floor(s / 60).toString().padStart(2, "0");
+        const ss = (s % 60).toString().padStart(2, "0");
+        return `${m}:${ss}`;
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center"
-            style={{
-                background: "radial-gradient(ellipse at center, rgba(11,18,38,0.95) 0%, rgba(5,8,18,0.98) 100%)",
-                backdropFilter: "blur(24px)",
-                WebkitBackdropFilter: "blur(24px)",
-            }}
-        >
-            {/* Top bar */}
-            <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-5">
-                <div className="flex items-center gap-3">
-                    <div
-                        className="w-9 h-9 rounded-full grid place-items-center"
-                        style={{
-                            background: `linear-gradient(135deg, ${ROYAL}, ${AZURE})`,
-                            boxShadow: `0 0 24px ${AZURE}55`,
-                        }}
-                    >
-                        <Sparkles size={16} className="text-white" />
-                    </div>
-                    <div>
-                        <div className="text-white/95 text-sm font-semibold tracking-wide">SYN</div>
-                        <div className="text-white/45 text-[10px] uppercase tracking-[0.2em]">Voice agent · {isClient ? "Client" : "Admin"} mode</div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setTtsEnabled(v => !v)}
-                        aria-label={ttsEnabled ? "Mute Syn" : "Unmute Syn"}
-                        className="w-10 h-10 rounded-full grid place-items-center text-white/70 hover:text-white hover:bg-white/8 transition"
-                    >
-                        {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setShowSettings(v => !v)}
-                        aria-label="Voice settings"
-                        className="w-10 h-10 rounded-full grid place-items-center text-white/70 hover:text-white hover:bg-white/8 transition"
-                    >
-                        <Settings2 size={18} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        aria-label="Close voice agent"
-                        className="w-10 h-10 rounded-full grid place-items-center text-white/70 hover:text-white hover:bg-white/8 transition"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-            </div>
+        <>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/55 backdrop-blur-[3px] z-[90]"
+                onClick={endCall}
+            />
 
-            {/* Settings panel */}
-            <AnimatePresence>
-                {showSettings && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        className="absolute top-20 right-6 w-[300px] rounded-2xl p-4 z-10"
-                        style={{
-                            background: "rgba(15,22,40,0.92)",
-                            border: `1px solid ${AZURE}30`,
-                            backdropFilter: "blur(18px)",
-                            WebkitBackdropFilter: "blur(18px)",
-                        }}
-                    >
-                        <div className="text-white/85 text-xs font-semibold mb-3 tracking-wide">VOICE OUTPUT</div>
-                        <select
-                            value={selectedVoiceURI}
-                            onChange={e => setSelectedVoiceURI(e.target.value)}
-                            className="w-full bg-[#0a0f1e] text-white/90 text-xs rounded-lg px-3 py-2 border border-white/10 focus:border-[#11B8EA] outline-none"
+            <motion.aside
+                initial={{ x: 480, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 480, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 240, damping: 28 }}
+                className="fixed top-0 right-0 bottom-0 z-[95] w-full sm:w-[460px] flex flex-col"
+                style={{
+                    background: "linear-gradient(180deg, #060B1A 0%, #0A1228 50%, #060A18 100%)",
+                    borderLeft: `1px solid ${AZURE}22`,
+                    boxShadow: `-30px 0 80px -20px rgba(0,0,0,0.7)`,
+                }}
+            >
+                {/* Header — caller chip + actions */}
+                <div className="px-5 py-4 flex items-center justify-between border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <motion.div
+                                className="w-11 h-11 rounded-full grid place-items-center"
+                                animate={{
+                                    boxShadow: state === "speaking"
+                                        ? [`0 0 0 0 ${AZURE}80`, `0 0 0 12px ${AZURE}00`]
+                                        : state === "listening"
+                                            ? [`0 0 0 0 ${AZURE}60`, `0 0 0 10px ${AZURE}00`]
+                                            : `0 0 18px ${AZURE}55`,
+                                }}
+                                transition={state === "speaking" || state === "listening"
+                                    ? { duration: 1.2, repeat: Infinity, ease: "easeOut" }
+                                    : { duration: 0.5 }}
+                                style={{ background: `linear-gradient(135deg, ${ROYAL}, ${AZURE})` }}
+                            >
+                                <Sparkles size={18} className="text-white" strokeWidth={1.8} />
+                            </motion.div>
+                        </div>
+                        <div>
+                            <div className="text-white/95 font-semibold text-[14px] leading-none">SYN</div>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="text-white/55 text-[10px] uppercase tracking-[0.18em]">
+                                    {state === "connecting" || state === "error"
+                                        ? state
+                                        : `voice · ${fmtTime(callTimer)}`}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <IconBtn onClick={() => setShowSettings(s => !s)} ariaLabel="Voice settings">
+                            <Settings2 size={15} />
+                        </IconBtn>
+                        <IconBtn onClick={endCall} ariaLabel="Close">
+                            <X size={17} />
+                        </IconBtn>
+                    </div>
+                </div>
+
+                {/* Settings drawer */}
+                <AnimatePresence>
+                    {showSettings && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden border-b border-white/5"
                         >
-                            {voiceList.map(v => (
-                                <option key={v.voiceURI} value={v.voiceURI}>
-                                    {v.name} ({v.lang})
-                                </option>
-                            ))}
-                        </select>
-                        <p className="text-white/40 text-[10px] mt-3 leading-relaxed">
-                            Browser TTS for now. Cloned voice (XTTS-v2) drops in once Sprint 0 samples are approved.
-                        </p>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            <div className="px-5 py-4">
+                                <div className="text-white/50 text-[10px] uppercase tracking-[0.2em] mb-2">Voice output</div>
+                                <select
+                                    value={selectedVoiceURI}
+                                    onChange={e => setSelectedVoiceURI(e.target.value)}
+                                    className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-white/90 text-xs outline-none focus:border-[#11B8EA]/60"
+                                >
+                                    {voiceList.map(v => (
+                                        <option key={v.voiceURI} value={v.voiceURI} className="bg-[#0A0F1E]">
+                                            {v.name} ({v.lang})
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-3 text-white/40 text-[10px] leading-relaxed">
+                                    Currently using your OS's TTS voice. Cloned voice (Dhananjay's actual recording, XTTS-v2 / ElevenLabs) drops in once backend wiring lands.
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-            {/* Center stack: orb + transcript */}
-            <div className="flex flex-col items-center justify-center w-full max-w-3xl px-6">
-                {/* Orb */}
-                <button
-                    type="button"
-                    onClick={onMicToggle}
-                    aria-label="Toggle microphone"
-                    className="relative group focus:outline-none"
-                    style={{ width: 260, height: 260 }}
-                >
-                    {/* Outer halo */}
-                    <motion.div
-                        className="absolute inset-0 rounded-full"
-                        animate={{
-                            scale: state === "listening" ? [1, 1.18, 1] : state === "speaking" ? [1, 1.10, 1] : state === "thinking" ? [1, 1.04, 1] : [1, 1.02, 1],
-                            opacity: state === "idle" ? 0.35 : 0.65,
-                        }}
-                        transition={{
-                            duration: state === "listening" ? 0.9 : state === "speaking" ? 1.1 : state === "thinking" ? 2.5 : 4,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                        }}
-                        style={{
-                            background: `radial-gradient(circle, ${state === "listening" ? AZURE : ROYAL}55 0%, transparent 70%)`,
-                            filter: "blur(28px)",
-                        }}
-                    />
-                    {/* Mid ring */}
-                    <motion.div
-                        className="absolute inset-6 rounded-full"
-                        animate={{
-                            rotate: state === "thinking" ? 360 : 0,
-                            scale: state === "speaking" ? [1, 1.04, 1] : 1,
-                        }}
-                        transition={{
-                            rotate: { duration: 6, repeat: Infinity, ease: "linear" },
-                            scale: { duration: 0.6, repeat: Infinity, ease: "easeInOut" },
-                        }}
-                        style={{
-                            background: `conic-gradient(from 0deg, ${ROYAL}, ${AZURE}, ${ROYAL})`,
-                            opacity: 0.45,
-                            filter: "blur(8px)",
-                        }}
-                    />
-                    {/* Core */}
-                    <motion.div
-                        className="absolute inset-10 rounded-full grid place-items-center"
-                        animate={{
-                            boxShadow: state === "listening"
-                                ? [`0 0 60px ${AZURE}80`, `0 0 100px ${AZURE}aa`, `0 0 60px ${AZURE}80`]
-                                : state === "speaking"
-                                    ? [`0 0 50px ${ROYAL}90`, `0 0 80px ${ROYAL}aa`, `0 0 50px ${ROYAL}90`]
-                                    : `0 0 40px ${ROYAL}70`,
-                        }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        style={{
-                            background: `radial-gradient(circle at 30% 30%, ${AZURE}, ${ROYAL} 70%, #0a0f1e 100%)`,
-                            border: `1px solid ${AZURE}66`,
-                        }}
-                    >
-                        {state === "listening" ? (
-                            <Mic size={56} className="text-white" strokeWidth={1.6} />
-                        ) : state === "error" ? (
-                            <MicOff size={56} className="text-white" strokeWidth={1.6} />
-                        ) : (
-                            <Sparkles size={48} className="text-white/95" strokeWidth={1.4} />
-                        )}
-                    </motion.div>
-                </button>
-
-                {/* Label */}
-                <div className="mt-10 text-center">
-                    <div className="text-white text-xl font-light tracking-wide">
-                        {stateLabel[state]}
+                {/* Main — avatar + status + interim */}
+                <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden">
+                    {/* Avatar orb */}
+                    <div className="relative" style={{ width: 210, height: 210 }}>
+                        <motion.div
+                            className="absolute inset-0 rounded-full"
+                            animate={{
+                                scale: state === "listening" ? [1, 1.18, 1]
+                                    : state === "speaking" ? [1, 1.1, 1]
+                                        : state === "thinking" ? [1, 1.03, 1]
+                                            : [1, 1.04, 1],
+                                opacity: state === "idle" || state === "connecting" ? 0.4 : 0.7,
+                            }}
+                            transition={{
+                                duration: state === "listening" ? 0.9
+                                    : state === "speaking" ? 1.05
+                                        : state === "thinking" ? 2.0
+                                            : 3.4,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                            }}
+                            style={{
+                                background: `radial-gradient(circle, ${state === "listening" ? AZURE : ROYAL}66 0%, transparent 70%)`,
+                                filter: "blur(26px)",
+                            }}
+                        />
+                        <motion.div
+                            className="absolute inset-3 rounded-full"
+                            animate={{
+                                rotate: state === "thinking" ? 360 : state === "speaking" ? 360 : 0,
+                            }}
+                            transition={{
+                                rotate: { duration: state === "thinking" ? 3 : 9, repeat: Infinity, ease: "linear" },
+                            }}
+                            style={{
+                                background: `conic-gradient(from 0deg, ${ROYAL}, ${AZURE}, ${ROYAL})`,
+                                opacity: 0.45,
+                                filter: "blur(7px)",
+                            }}
+                        />
+                        <motion.div
+                            className="absolute inset-7 rounded-full grid place-items-center"
+                            animate={{
+                                boxShadow: state === "listening"
+                                    ? [`0 0 50px ${AZURE}80`, `0 0 95px ${AZURE}aa`, `0 0 50px ${AZURE}80`]
+                                    : state === "speaking"
+                                        ? [`0 0 45px ${ROYAL}90`, `0 0 80px ${ROYAL}aa`, `0 0 45px ${ROYAL}90`]
+                                        : `0 0 35px ${ROYAL}66`,
+                            }}
+                            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                            style={{
+                                background: `radial-gradient(circle at 30% 30%, ${AZURE}, ${ROYAL} 70%, #0a0f1e 100%)`,
+                                border: `1px solid ${AZURE}66`,
+                            }}
+                        >
+                            {state === "listening" ? (
+                                <Mic size={42} className="text-white" strokeWidth={1.6} />
+                            ) : state === "error" ? (
+                                <MicOff size={42} className="text-white/80" strokeWidth={1.6} />
+                            ) : (
+                                <Sparkles size={40} className="text-white/95" strokeWidth={1.4} />
+                            )}
+                        </motion.div>
                     </div>
-                    <div className="text-white/50 text-sm mt-1.5">
-                        {stateSubtitle[state]}
+
+                    {/* Status */}
+                    <div className="mt-9 text-center">
+                        <div className="text-white text-[17px] font-light tracking-wide">
+                            {statusLine[state]}
+                        </div>
+                        <div className="text-white/45 text-[11px] mt-1.5">
+                            {statusSubtitle[state]}
+                        </div>
+                    </div>
+
+                    {/* Interim / streaming preview */}
+                    <div className="mt-5 w-full max-w-sm min-h-[44px] max-h-[100px] overflow-y-auto px-3">
+                        <AnimatePresence mode="wait">
+                            {(state === "listening" || state === "idle") && interim && (
+                                <motion.div
+                                    key="interim"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="text-center text-white/75 text-sm italic leading-relaxed"
+                                >
+                                    {`"${interim}"`}
+                                </motion.div>
+                            )}
+                            {(state === "speaking" || state === "thinking") && reply && (
+                                <motion.div
+                                    key="reply"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="text-center text-white/85 text-[13px] leading-relaxed"
+                                >
+                                    {stripForVoice(reply)}
+                                </motion.div>
+                            )}
+                            {state === "error" && (
+                                <motion.div
+                                    key="err"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="text-center text-rose-300/90 text-xs"
+                                >
+                                    {errorMsg}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
 
-                {/* Live transcript area */}
-                <div className="mt-8 w-full max-w-xl min-h-[80px]">
-                    <AnimatePresence mode="wait">
-                        {state === "listening" && (transcript || pendingTranscript) && (
+                {/* Call controls */}
+                <div className="px-6 pt-5 pb-6 border-t border-white/5">
+                    <div className="flex items-center justify-center gap-6">
+                        <CallBtn onClick={toggleMute} variant={muted ? "danger" : "neutral"} ariaLabel={muted ? "Unmute mic" : "Mute mic"}>
+                            {muted ? <MicOff size={20} /> : <Mic size={20} />}
+                        </CallBtn>
+                        <CallBtn onClick={endCall} variant="end" big ariaLabel="End call">
+                            <PhoneOff size={26} />
+                        </CallBtn>
+                        <CallBtn onClick={toggleSpeaker} variant={speakerOn ? "neutral" : "danger"} ariaLabel={speakerOn ? "Mute speaker" : "Unmute speaker"}>
+                            {speakerOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                        </CallBtn>
+                    </div>
+
+                    {history.length > 0 && (
+                        <button
+                            onClick={() => setHistoryOpen(o => !o)}
+                            className="mt-5 w-full text-center text-white/40 hover:text-white/75 text-[10px] uppercase tracking-[0.22em] transition-colors"
+                        >
+                            {historyOpen ? "Hide" : "View"} conversation ({history.length})
+                        </button>
+                    )}
+
+                    <AnimatePresence>
+                        {historyOpen && (
                             <motion.div
-                                key="transcript"
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                className="text-center text-white/85 text-base leading-relaxed px-6"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 220, opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden mt-3"
                             >
-                                <span className="text-white">{transcript}</span>
-                                <span className="text-white/40">{pendingTranscript}</span>
-                            </motion.div>
-                        )}
-                        {(state === "speaking" || state === "thinking") && reply && (
-                            <motion.div
-                                key="reply"
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                className="text-center text-white/90 text-base leading-relaxed px-6 max-h-[180px] overflow-y-auto"
-                            >
-                                {reply}
-                            </motion.div>
-                        )}
-                        {state === "error" && (
-                            <motion.div
-                                key="err"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="text-center text-rose-300/90 text-sm px-6"
-                            >
-                                {errorMsg}
+                                <div className="max-h-[220px] overflow-y-auto space-y-3 pr-2">
+                                    {history.slice(-14).map((m, i) => (
+                                        <div key={i} className="text-xs">
+                                            <div className={`text-[9px] uppercase tracking-[0.18em] mb-0.5 ${m.role === "user" ? "text-cyan-400" : "text-blue-400"}`}>
+                                                {m.role === "user" ? (clientName ? clientName.split(" ")[0] : "You") : "Syn"}
+                                            </div>
+                                            <div className="text-white/75 leading-snug">
+                                                {stripForVoice(m.content)}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
-            </div>
+            </motion.aside>
+        </>
+    );
+}
 
-            {/* Bottom history pill */}
-            {history.length > 0 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-2xl w-full px-6">
-                    <details className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-md">
-                        <summary className="cursor-pointer px-4 py-2.5 text-white/60 text-xs tracking-wide uppercase select-none">
-                            Conversation ({history.length})
-                        </summary>
-                        <div className="px-4 pb-4 pt-1 max-h-[260px] overflow-y-auto space-y-3">
-                            {history.slice(-8).map((m, i) => (
-                                <div key={i} className="text-sm">
-                                    <div className={`text-[10px] uppercase tracking-wider mb-0.5 ${m.role === "user" ? "text-[#11B8EA]" : "text-[#3B6AE8]"}`}>
-                                        {m.role === "user" ? (clientName || "You") : "Syn"}
-                                    </div>
-                                    <div className="text-white/80 leading-relaxed">{m.content}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </details>
-                </div>
-            )}
-        </motion.div>
+// ─── Sub-components ────────────────────────────────────────────────────────
+function IconBtn({ children, onClick, ariaLabel }: { children: React.ReactNode; onClick: () => void; ariaLabel: string }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={ariaLabel}
+            className="w-9 h-9 rounded-full grid place-items-center text-white/60 hover:text-white hover:bg-white/[0.07] transition"
+        >
+            {children}
+        </button>
+    );
+}
+
+function CallBtn({
+    children, onClick, variant, big, ariaLabel,
+}: {
+    children: React.ReactNode;
+    onClick: () => void;
+    variant: "neutral" | "danger" | "end";
+    big?: boolean;
+    ariaLabel: string;
+}) {
+    const size = big ? 64 : 52;
+    const styles: React.CSSProperties =
+        variant === "end"
+            ? { background: "#DC2626", color: "#fff", boxShadow: "0 10px 26px -8px rgba(220,38,38,0.55)" }
+            : variant === "danger"
+                ? { background: "rgba(220,38,38,0.16)", color: "#FCA5A5", border: "1px solid rgba(220,38,38,0.38)" }
+                : { background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)" };
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={ariaLabel}
+            className="rounded-full grid place-items-center transition-all hover:scale-105 active:scale-95"
+            style={{ width: size, height: size, ...styles }}
+        >
+            {children}
+        </button>
     );
 }
