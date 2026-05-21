@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, PhoneOff, Volume2, VolumeX, Settings2, Sparkles, X } from "lucide-react";
+import SynVoiceOrb from "./SynVoiceOrb";
 
 type State = "connecting" | "idle" | "listening" | "thinking" | "speaking" | "ended" | "error";
 
@@ -386,8 +387,13 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
 
                     rec.onresult = (event: any) => {
                         const s = stateRef.current;
-                        // Only collect transcripts while we're listening / idle / speaking (for barge-in)
-                        if (s === "thinking" || s === "ended" || s === "connecting") return;
+                        // CRITICAL: only capture the user's words while we're actually
+                        // listening / idle. During "speaking" the mic picks up Syn's own
+                        // TTS (echo) — if we transcribed that it would corrupt the next
+                        // turn ("kuch aur interpret kar raha hai"). Barge-in is handled
+                        // purely by the VAD RMS loop, NOT by STT, so we can safely drop
+                        // everything that isn't a genuine listening window.
+                        if (s !== "listening" && s !== "idle") return;
 
                         let interimT = "";
                         let finalT = "";
@@ -662,73 +668,12 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
                     )}
                 </AnimatePresence>
 
-                {/* Main — avatar + status + interim */}
+                {/* Main — living glass-liquid orb (no transcript / no reply text) */}
                 <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden">
-                    {/* Avatar orb */}
-                    <div className="relative" style={{ width: 210, height: 210 }}>
-                        <motion.div
-                            className="absolute inset-0 rounded-full"
-                            animate={{
-                                scale: state === "listening" ? [1, 1.18, 1]
-                                    : state === "speaking" ? [1, 1.1, 1]
-                                        : state === "thinking" ? [1, 1.03, 1]
-                                            : [1, 1.04, 1],
-                                opacity: state === "idle" || state === "connecting" ? 0.4 : 0.7,
-                            }}
-                            transition={{
-                                duration: state === "listening" ? 0.9
-                                    : state === "speaking" ? 1.05
-                                        : state === "thinking" ? 2.0
-                                            : 3.4,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            }}
-                            style={{
-                                background: `radial-gradient(circle, ${state === "listening" ? AZURE : ROYAL}66 0%, transparent 70%)`,
-                                filter: "blur(26px)",
-                            }}
-                        />
-                        <motion.div
-                            className="absolute inset-3 rounded-full"
-                            animate={{
-                                rotate: state === "thinking" ? 360 : state === "speaking" ? 360 : 0,
-                            }}
-                            transition={{
-                                rotate: { duration: state === "thinking" ? 3 : 9, repeat: Infinity, ease: "linear" },
-                            }}
-                            style={{
-                                background: `conic-gradient(from 0deg, ${ROYAL}, ${AZURE}, ${ROYAL})`,
-                                opacity: 0.45,
-                                filter: "blur(7px)",
-                            }}
-                        />
-                        <motion.div
-                            className="absolute inset-7 rounded-full grid place-items-center"
-                            animate={{
-                                boxShadow: state === "listening"
-                                    ? [`0 0 50px ${AZURE}80`, `0 0 95px ${AZURE}aa`, `0 0 50px ${AZURE}80`]
-                                    : state === "speaking"
-                                        ? [`0 0 45px ${ROYAL}90`, `0 0 80px ${ROYAL}aa`, `0 0 45px ${ROYAL}90`]
-                                        : `0 0 35px ${ROYAL}66`,
-                            }}
-                            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-                            style={{
-                                background: `radial-gradient(circle at 30% 30%, ${AZURE}, ${ROYAL} 70%, #0a0f1e 100%)`,
-                                border: `1px solid ${AZURE}66`,
-                            }}
-                        >
-                            {state === "listening" ? (
-                                <Mic size={42} className="text-white" strokeWidth={1.6} />
-                            ) : state === "error" ? (
-                                <MicOff size={42} className="text-white/80" strokeWidth={1.6} />
-                            ) : (
-                                <Sparkles size={40} className="text-white/95" strokeWidth={1.4} />
-                            )}
-                        </motion.div>
-                    </div>
+                    <SynVoiceOrb state={state} size={236} />
 
-                    {/* Status */}
-                    <div className="mt-9 text-center">
+                    {/* Status (mood only — never the words spoken) */}
+                    <div className="mt-10 text-center">
                         <div className="text-white text-[17px] font-light tracking-wide">
                             {statusLine[state]}
                         </div>
@@ -737,36 +682,15 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
                         </div>
                     </div>
 
-                    {/* Interim / streaming preview */}
-                    <div className="mt-5 w-full max-w-sm min-h-[44px] max-h-[100px] overflow-y-auto px-3">
+                    {/* Only surface hard errors — never the conversation itself */}
+                    <div className="mt-5 w-full max-w-sm min-h-[24px] px-3">
                         <AnimatePresence mode="wait">
-                            {(state === "listening" || state === "idle") && interim && (
-                                <motion.div
-                                    key="interim"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="text-center text-white/75 text-sm italic leading-relaxed"
-                                >
-                                    {`"${interim}"`}
-                                </motion.div>
-                            )}
-                            {(state === "speaking" || state === "thinking") && reply && (
-                                <motion.div
-                                    key="reply"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="text-center text-white/85 text-[13px] leading-relaxed"
-                                >
-                                    {stripForVoice(reply)}
-                                </motion.div>
-                            )}
                             {state === "error" && (
                                 <motion.div
                                     key="err"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
                                     className="text-center text-rose-300/90 text-xs"
                                 >
                                     {errorMsg}
