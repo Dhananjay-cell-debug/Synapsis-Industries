@@ -34,6 +34,11 @@ const AZURE = "#11B8EA";
 const ROYAL = "#3B6AE8";
 const SENTENCE_END = /([.!?।]|\n\n)\s*$/;
 
+// Cloned voice: when enabled, TTS is fetched from /api/voice/tts (Dhananjay's
+// approved XTTS clone). Falls back to the browser OS voice if the engine is
+// offline/unconfigured, so the panel never breaks.
+const USE_CLONED_VOICE = process.env.NEXT_PUBLIC_SYN_CLONED_VOICE === "1";
+
 // VAD tuning — tested for built-in laptop mic with echoCancellation on
 const VOICE_THRESHOLD = 0.022;                 // RMS to detect voice (idle/speaking → listening)
 const VOICE_THRESHOLD_WHILE_SPEAKING = 0.045;  // higher bar during TTS playback (echo bleed)
@@ -100,6 +105,9 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
     const speakingRef = useRef<boolean>(false);
     const abortRef = useRef<AbortController | null>(null);
     const submittedRef = useRef<boolean>(false);
+    const clonedAudioRef = useRef<HTMLAudioElement | null>(null);   // current cloned-voice playback
+    const clonedDisabledRef = useRef<boolean>(false);               // flips true if engine 503/unreachable → use browser voice rest of session
+    const ttsAbortRef = useRef<AbortController | null>(null);       // aborts an in-flight /api/voice/tts fetch on barge-in
 
     // Mirror state into refs so loops/callbacks read current values
     useEffect(() => { stateRef.current = state; }, [state]);
@@ -152,12 +160,68 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
         return () => { cancelled = true; };
     }, [apiBase]);
 
-    // ─── TTS queue: chain utterances via onend ───────────────────────────
+    // ─── Stop ALL playback (browser TTS + cloned-voice audio) — for barge-in,
+    //     speaker-off, end-call, unmount. ──────────────────────────────────
+    const stopAllPlayback = useCallback(() => {
+        try { window.speechSynthesis.cancel(); } catch { /* */ }
+        try { ttsAbortRef.current?.abort(); } catch { /* */ }
+        const a = clonedAudioRef.current;
+        if (a) {
+            try { a.pause(); a.src = ""; } catch { /* */ }
+            clonedAudioRef.current = null;
+        }
+        speakingRef.current = false;
+    }, []);
+
+    // Browser OS-voice fallback for a single utterance. Chains via onend.
+    const speakBrowser = useCallback((clean: string, done: () => void) => {
+        if (typeof window === "undefined" || !("speechSynthesis" in window)) { done(); return; }
+        const u = new SpeechSynthesisUtterance(clean);
+        const v = voiceList.find(x => x.voiceURI === selectedVoiceURI);
+        if (v) u.voice = v;
+        u.rate = 1.0; u.pitch = 1.0; u.volume = 1.0;
+        u.onstart = () => { setState("speaking"); };
+        u.onend = () => { done(); };
+        u.onerror = () => { done(); };
+        try { window.speechSynthesis.speak(u); }
+        catch { done(); }
+    }, [voiceList, selectedVoiceURI]);
+
+    // Cloned voice for a single utterance: fetch /api/voice/tts → play WAV.
+    // Resolves on natural end; rejects (→ caller falls back to browser voice)
+    // on engine 503/unreachable. Aborted playback resolves quietly (barge-in).
+    const speakCloned = useCallback((clean: string) => new Promise<void>((resolve, reject) => {
+        const ac = new AbortController();
+        ttsAbortRef.current = ac;
+        fetch("/api/voice/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: clean }),
+            signal: ac.signal,
+        }).then(async (res) => {
+            if (res.status === 503) { clonedDisabledRef.current = true; reject(new Error("unconfigured")); return; }
+            if (!res.ok) { reject(new Error(`engine ${res.status}`)); return; }
+            const blob = await res.blob();
+            if (ac.signal.aborted) { resolve(); return; }
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            clonedAudioRef.current = audio;
+            audio.onended = () => { URL.revokeObjectURL(url); if (clonedAudioRef.current === audio) clonedAudioRef.current = null; resolve(); };
+            audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error("play error")); };
+            setState("speaking");
+            audio.play().catch(() => { URL.revokeObjectURL(url); reject(new Error("play blocked")); });
+        }).catch((e) => {
+            if (ac.signal.aborted) { resolve(); return; }   // barge-in / unmount: not an error
+            reject(e);
+        });
+    }), []);
+
+    // ─── TTS queue: chain utterances via completion callback ──────────────
     const drainTTS = useCallback(() => {
-        if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+        if (typeof window === "undefined") return;
         if (!speakerOnRef.current) {
             ttsQueueRef.current = [];
-            speakingRef.current = false;
+            stopAllPlayback();
             setState(s => (s === "speaking" ? "idle" : s));
             return;
         }
@@ -169,16 +233,19 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
         }
         const clean = stripForVoice(next);
         if (!clean || clean.length < 1) { drainTTS(); return; }
-        const u = new SpeechSynthesisUtterance(clean);
-        const v = voiceList.find(x => x.voiceURI === selectedVoiceURI);
-        if (v) u.voice = v;
-        u.rate = 1.0; u.pitch = 1.0; u.volume = 1.0;
-        u.onstart = () => { speakingRef.current = true; setState("speaking"); };
-        u.onend = () => { speakingRef.current = false; drainTTS(); };
-        u.onerror = () => { speakingRef.current = false; drainTTS(); };
-        try { window.speechSynthesis.speak(u); }
-        catch { speakingRef.current = false; drainTTS(); }
-    }, [voiceList, selectedVoiceURI]);
+
+        speakingRef.current = true;
+        setState("speaking");
+        const advance = () => { speakingRef.current = false; drainTTS(); };
+
+        if (USE_CLONED_VOICE && !clonedDisabledRef.current) {
+            speakCloned(clean)
+                .then(advance)
+                .catch(() => { speakBrowser(clean, advance); });  // engine down → OS voice
+        } else {
+            speakBrowser(clean, advance);
+        }
+    }, [stopAllPlayback, speakBrowser, speakCloned]);
 
     // ─── Submit accumulated transcript to brain, stream reply ────────────
     const sendToSyn = useCallback(async (userText: string) => {
@@ -382,10 +449,9 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
                         // Sustained voice → transition / barge-in
                         if (now - voiceStartTsRef.current > VOICE_MIN_DURATION_MS) {
                             if (s === "speaking") {
-                                // Barge-in: kill TTS, switch to listening
+                                // Barge-in: kill TTS (browser + cloned), switch to listening
                                 ttsQueueRef.current = [];
-                                try { window.speechSynthesis.cancel(); } catch { }
-                                speakingRef.current = false;
+                                stopAllPlayback();
                                 transcriptRef.current = "";
                                 setReply("");
                                 setState("listening");
@@ -429,7 +495,7 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
             try { recognitionRef.current?.stop?.(); } catch { }
             streamRef.current?.getTracks().forEach(t => t.stop());
             audioCtxRef.current?.close().catch(() => { });
-            try { window.speechSynthesis.cancel(); } catch { }
+            stopAllPlayback();
             ttsQueueRef.current = [];
             abortRef.current?.abort();
         };
@@ -455,24 +521,23 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
         setSpeakerOn(s => {
             const next = !s;
             if (!next) {
-                try { window.speechSynthesis.cancel(); } catch { }
                 ttsQueueRef.current = [];
-                speakingRef.current = false;
+                stopAllPlayback();
                 setState(st => (st === "speaking" ? "idle" : st));
             }
             return next;
         });
-    }, []);
+    }, [stopAllPlayback]);
 
     const endCall = useCallback(() => {
         setState("ended");
-        try { window.speechSynthesis.cancel(); } catch { }
+        stopAllPlayback();
         ttsQueueRef.current = [];
         abortRef.current?.abort();
         restartRecRef.current = false;
         try { recognitionRef.current?.stop?.(); } catch { }
         setTimeout(() => onClose(), 280);
-    }, [onClose]);
+    }, [onClose, stopAllPlayback]);
 
     // ─── Copy ───────────────────────────────────────────────────────────
     const statusLine: Record<State, string> = {
@@ -588,7 +653,9 @@ export default function SynVoicePanel({ mode, token, clientName, phase, onClose 
                                     ))}
                                 </select>
                                 <p className="mt-3 text-white/40 text-[10px] leading-relaxed">
-                                    Currently using your OS's TTS voice. Cloned voice (Dhananjay's actual recording, XTTS-v2 / ElevenLabs) drops in once backend wiring lands.
+                                    {USE_CLONED_VOICE
+                                        ? "Using Dhananjay's cloned voice (XTTS-v2). This OS voice is only the fallback if the voice engine is unreachable."
+                                        : "Currently using your OS's TTS voice. The cloned voice (Dhananjay's XTTS-v2 recording) activates when the voice engine is configured."}
                                 </p>
                             </div>
                         </motion.div>
