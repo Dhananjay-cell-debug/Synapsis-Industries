@@ -131,7 +131,7 @@ export default function SynapsisHomepage() {
                     <div className="method-head">
                         <div className="section-num">05 / Method</div>
                         <div className="phase-chip reveal" style={{ marginBottom: 24 }}><span className="phase-chip-dot" />HOW WE WORK</div>
-                        <h2 className="head-title reveal" style={{ marginTop: 0 }}>Four phases.<br /><em>One continuous arc.</em></h2>
+                        <h2 className="head-title reveal" style={{ marginTop: 0 }}>Seven phases.<br /><em>One continuous arc.</em></h2>
                     </div>
 
                     <div className="method-track">
@@ -355,10 +355,13 @@ const SERVICES = [
 ];
 
 const METHOD_PHASES = [
-    { num: "01", title: "Map", dur: "// 2 WEEKS", body: "A paid discovery sprint. We sit with your operators, audit your stack, and surface the highest-leverage problem worth building.", deliv: "Written recommendation + system diagram" },
-    { num: "02", title: "Sketch", dur: "// 3–4 WEEKS", body: "A working slice on your real data. Not a demo — a thin vertical that runs end-to-end and earns its keep.", deliv: "Live prototype + design system" },
-    { num: "03", title: "Build", dur: "// 8–16 WEEKS", body: "Full implementation alongside your team. Weekly demos, pair-programming, design reviews — until the metrics move.", deliv: "Production system + handover" },
-    { num: "04", title: "Operate", dur: "// ONGOING", body: "Optional partnership. Monitoring, evals, iteration. We stay long enough to see the second-order effects of what we built.", deliv: "Quarterly reviews + on-call" },
+    { num: "01", title: "Discover", dur: "// PHASE 1", body: "Detailed pain-mapping. We audit your stack and current friction points to reveal the real business problem, not just the stated one.", deliv: "Discovery Questionnaire + Full Journey Map" },
+    { num: "02", title: "Blueprint", dur: "// PHASE 2", body: "A technical manifesto. We define the solution architecture, tech stack rationale, and a precise investment breakdown.", deliv: "System Design Document + Scope Definition" },
+    { num: "03", title: "Ignition", dur: "// PHASE 3", body: "The hard gate. Advance payment triggers the full project workspace, locking in timelines and activating our build team.", deliv: "Project Kickoff + Asset Collection" },
+    { num: "04", title: "Build", dur: "// PHASE 4", body: "Weekly sprint cycles. Friday reports, change orders, and staging links keep you in the loop while we build your system layer by layer.", deliv: "Staging URL + Weekly Sprint Reports" },
+    { num: "05", title: "Deliver", dur: "// PHASE 5", body: "Final review period. Revisions are tracked and finalized until the build passes our internal evals and your standards.", deliv: "Production-ready Build + Revision Logs" },
+    { num: "06", title: "Handover", dur: "// PHASE 6", body: "The clean transition. Final payment triggers deployment, credential handover, and a 30-day bug support window.", deliv: "Access Credentials + Architecture Overview" },
+    { num: "07", title: "Orbit", dur: "// PHASE 7", body: "Indefinite partnership. Quarterly reviews and referral benefits ensure your system grows as your business scales.", deliv: "Maintenance Retainer + Performance Reports" },
 ];
 
 const WORK_INDEX = [
@@ -469,14 +472,15 @@ const SYN_HOME_CSS = `
 /* SECTION 05 */
 .syn-home .method-wrap{padding:0 80px;max-width:1500px;margin:0 auto}
 .syn-home .method-head{margin-bottom:80px}
-.syn-home .method-track{position:relative;padding:60px 0 80px}
+.syn-home .method-track{position:relative;padding:60px 0 80px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;}
+.syn-home .method-track::-webkit-scrollbar{display:none}
 .syn-home .method-track::before{content:'';position:absolute;top:130px;left:0;right:0;height:1px;background:var(--line-strong)}
-.syn-home .method-phases{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
-.syn-home .method-phase{padding:0 30px;position:relative;border-left:1px dashed var(--line)}
+.syn-home .method-phases{display:flex;gap:0;min-width:max-content;padding-bottom:20px}
+.syn-home .method-phase{width:360px;padding:0 40px;position:relative;border-left:1px dashed var(--line)}
 .syn-home .method-phase:first-child{padding-left:0;border-left:none}
 .syn-home .method-phase-num{font-family:'Fraunces',serif;font-size:90px;line-height:1;letter-spacing:-.03em;color:var(--ink);font-weight:400;margin-bottom:32px;position:relative}
 .syn-home .method-phase-num em{font-style:italic;color:var(--blue)}
-.syn-home .method-phase-node{position:absolute;left:-7px;top:130px;width:14px;height:14px;background:var(--cream-deep);border:2px solid var(--ink);border-radius:50%;z-index:2}
+.syn-home .method-phase-node{position:absolute;left:-7px;top:70px;width:14px;height:14px;background:var(--cream-deep);border:2px solid var(--ink);border-radius:50%;z-index:2}
 .syn-home .method-phase:first-child .method-phase-node{left:-7px}
 .syn-home .method-phase-title{font-family:'Fraunces',serif;font-size:30px;line-height:1.1;letter-spacing:-.02em;font-weight:500;margin-bottom:14px}
 .syn-home .method-phase-dur{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.5;margin-bottom:18px}
