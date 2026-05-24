@@ -8,8 +8,8 @@ interface OverlayState {
 }
 
 export const useOverlayStore = create<OverlayState>((set) => ({
-    top: 49,
-    left: 50,
+    top: 42.0,
+    left: 82.0,
     setTop: (v) => set({ top: v }),
     setLeft: (v) => set({ left: v }),
 }));

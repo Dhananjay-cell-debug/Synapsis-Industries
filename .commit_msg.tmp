@@ -1,0 +1,11 @@
+fix(homepage,syn): peel reveals homepage under ticker; syn renders markdown; tooltip renamed
+
+- page.tsx: shorten cave spacer 675vh -> 600vh so SynapsisHomepage sits BEHIND
+  the ticker during the 6->6.75vh peel window. 75vh cream pad above the
+  homepage so the peel uncovers a clean cream backdrop, then manifesto starts.
+- SynChatPanel + new markdown-lite.tsx: drop react-markdown@10 (was silently
+  not parsing bold/headings/lists in chat bubbles). In-file regex-based
+  renderer with Tailwind important-prefix overrides globals.css h1-h6 reset.
+- SynLauncher: collapse admin/client conditional, always "Need help".
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>

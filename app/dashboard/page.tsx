@@ -3535,7 +3535,7 @@ export default function Dashboard() {
 
             <div className="flex-1 flex flex-col overflow-hidden relative z-10">
                 {/* Topbar */}
-                <header className="flex items-center justify-between px-8 py-4 border-b border-white/6 shrink-0 bg-[#0A0F1E]/60 backdrop-blur-sm">
+                <header className="relative z-50 flex items-center justify-between px-8 py-4 border-b border-white/6 shrink-0 bg-[#0A0F1E]/60 backdrop-blur-sm">
                     <div className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         <span className="text-[10px] tracking-[0.35em] uppercase text-white/25">All Systems Operational</span>

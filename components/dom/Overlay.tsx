@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 import { useOverlayStore } from "@/store/useOverlayStore";
 
 function LetterReveal({ text, className, style, delay = 0 }: {
@@ -13,8 +12,6 @@ function LetterReveal({ text, className, style, delay = 0 }: {
         const letters = ref.current?.querySelectorAll(".letter");
         if (!letters) return;
 
-        // In 3D space, IntersectionObserver can be unreliable due to matrix3d transforms.
-        // We'll just trigger the reveal unconditionally on mount with a small delay.
         setTimeout(() => {
             letters.forEach((el, i) => {
                 const span = el as HTMLElement;
@@ -45,23 +42,28 @@ function LetterReveal({ text, className, style, delay = 0 }: {
 }
 
 export default function Overlay() {
-    // The artificial scroll fading has been entirely removed!
-    // The overlay will now physically sit in the 3D world as a wall/glass pane.
-    // When the camera physically dollies into the scene, it will pass through this textual wall,
-    // leaving the text behind and out of view automatically!
+    const { top, left } = useOverlayStore();
+    const [opacity, setOpacity] = useState(1);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            // Fade out the overlay cleanly over the first 120px of scroll
+            const newOpacity = Math.max(0, 1 - window.scrollY / 120);
+            setOpacity(newOpacity);
+        };
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
 
     return (
         <div
-            className="absolute pointer-events-none z-50 flex flex-col justify-between p-[var(--spacing-container)]"
+            className="fixed inset-0 pointer-events-none z-10 flex flex-col justify-between p-[var(--spacing-container)] transition-opacity duration-150"
             style={{
                 width: "100vw",
                 height: "100vh",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)"
+                opacity,
             }}
         >
-
             {/* Left Tag — "Dhananjay Chitmilla" */}
             <div
                 className="origin-center bg-white text-black px-3 py-2 text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-2"
@@ -76,22 +78,14 @@ export default function Overlay() {
                 Dhananjay Chitmilla
             </div>
 
-            {/* Top HUD */}
-            <div className="flex justify-between items-start w-full">
-                <div className="flex flex-col gap-1" />
-                <div className="flex gap-8 items-center">
-                    <div className="w-8 h-[1px] bg-black/40" />
-                </div>
-            </div>
-
-            {/* Nameplate Title — centered above the doorway like a building sign */}
+            {/* Nameplate Title — centered */}
             <div
-                className="text-center text-white whitespace-nowrap"
+                className="text-center text-white whitespace-nowrap select-none"
                 style={{
                     position: "absolute",
-                    top: `${useOverlayStore(state => state.top)}%`,
-                    left: `${useOverlayStore(state => state.left)}%`,
-                    transform: "translate(-50%, 0)",
+                    top: `${top}%`,
+                    left: `${left}%`,
+                    transform: "translate(-50%, -50%)",
                 }}
             >
                 <LetterReveal
@@ -122,7 +116,7 @@ export default function Overlay() {
 
             {/* Scroll Indicator */}
             <div
-                className="uppercase tracking-widest -rotate-90 origin-bottom-right"
+                className="uppercase tracking-widest -rotate-90 origin-bottom-right select-none"
                 style={{
                     position: "absolute",
                     bottom: "26vw",
@@ -133,7 +127,6 @@ export default function Overlay() {
             >
                 Scroll To Explore
             </div>
-
         </div>
     );
 }
