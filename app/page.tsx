@@ -192,7 +192,7 @@ export default function Home() {
 
             <CavePeelController />
             <TickerSection />
-            <S2PeelController />
+            {/* <S2PeelController /> */}
             <main className="relative w-full" style={{ backgroundColor: "#0A0F1E", cursor: "none" }}>
                 {/* Fixed 3D / atmospherics — only over the first ~6.75vh of scroll */}
                 <div id="cave-canvas-container" className="fixed inset-0 z-0 h-screen w-full">
@@ -208,10 +208,9 @@ export default function Home() {
                     while the ticker peels over it during 6→6.75vh. */}
                 <section className="w-full pointer-events-none" style={{ height: "600vh" }} />
 
-                {/* New homepage — natural-flow content. Top 75vh is a cream pad so
-                    the peel reveals the cream backdrop, not the manifesto headline being scrolled. */}
+                {/* New homepage — natural-flow content. Removed the 75vh cream pad to avoid sudden white block. */}
                 <div className="relative z-10 w-full pointer-events-auto">
-                    <div style={{ height: "75vh", background: "#FAF9F6" }} />
+                    {/* <div style={{ height: "75vh", background: "#FAF9F6" }} /> */}
                     <SynapsisHomepage />
                 </div>
             </main>
