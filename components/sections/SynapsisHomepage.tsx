@@ -173,25 +173,29 @@ export default function SynapsisHomepage() {
 
                         <div className="work-feature">
                             <div>
-                                <div className="work-feature-tag">{"// FEATURED · FINTECH UNDERWRITING"}</div>
-                                <h3 className="work-feature-title">An autonomous underwriting <em>agent</em> that closes most of the queue before lunch.</h3>
+                                <div className="work-feature-tag">{"// FEATURED · AI VOICE SYSTEMS"}</div>
+                                <h3 className="work-feature-title">A low-latency <em>voice agent</em> that handles inbound leads with human-level nuance.</h3>
                             </div>
-                            <div className="work-feature-image">
-                                <div className="work-image-tag">CASE / ASTRYX</div>
-                                <div className="work-image-meta">73%<span className="sub">AUTO-APPROVED</span></div>
+                            <div className="work-feature-image" style={{ 
+                                backgroundImage: 'url("/syn-voice-agent.jpg")',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center'
+                            }}>
+                                <div className="work-image-tag">CASE / SYN-VOICE</div>
+                                <div className="work-image-meta">98%<span className="sub">ACCURACY</span></div>
                             </div>
                             <div className="work-feature-quote">
-                                They embedded with our credit team for six weeks. By the end, the agent was making cleaner decisions than half our analysts.
-                                <div className="work-feature-attrib">— PRIYA MEHTA · VP CREDIT · ASTRYX CAPITAL</div>
+                                We reduced their lead response time from 4 hours to 4 seconds. The system doesn't just talk — it thinks, qualifies, and books.
+                                <div className="work-feature-attrib">— DHANANJAY CHITMILLA · FOUNDER · SYNAPSIS</div>
                             </div>
                         </div>
 
                         <div className="work-metrics">
                             <div className="work-index-label">[ Live metrics ]</div>
-                            <div className="work-metric"><div className="work-metric-num"><em>73</em>%</div><div className="work-metric-label">Auto-approved</div></div>
-                            <div className="work-metric"><div className="work-metric-num">90s</div><div className="work-metric-label">Avg decision time</div></div>
-                            <div className="work-metric"><div className="work-metric-num"><em>$1.4</em>M</div><div className="work-metric-label">Annual savings</div></div>
-                            <div className="work-metric"><div className="work-metric-num">41%</div><div className="work-metric-label">Less paperwork</div></div>
+                            <div className="work-metric"><div className="work-metric-num"><em>98</em>%</div><div className="work-metric-label">Transcription Accuracy</div></div>
+                            <div className="work-metric"><div className="work-metric-num">&lt;200ms</div><div className="work-metric-label">Voice Latency</div></div>
+                            <div className="work-metric"><div className="work-metric-num"><em>$240</em>k</div><div className="work-metric-label">Annual Savings</div></div>
+                            <div className="work-metric"><div className="work-metric-num">100%</div><div className="work-metric-label">Availability</div></div>
                         </div>
                     </div>
                 </div>
