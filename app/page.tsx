@@ -19,8 +19,8 @@ const REVEAL_STRIPS = [
 /* ─────────── Scroll windows (in viewport-heights) ───────────
     0   – 5.0  vh  Cave / 3D walkthrough alone
     5.0 – 6.0  vh  Cave peels away; ticker fades in underneath
-    6.0 – 6.75 vh  Ticker / login peels away
-    6.75+      vh  SynapsisHomepage (natural scroll)
+    6.0 – 6.75 vh  Ticker / login peels away; Slide 3 (Manifesto) revealed underneath
+    6.75+      vh  Manifesto and rest of homepage (natural scroll starts)
    ──────────────────────────────────────────────────────────── */
 
 function CavePeelController() {
@@ -69,9 +69,11 @@ function TickerSection() {
     useEffect(() => {
         const onScroll = () => {
             const el = ref.current; if (!el) return;
-            const totalP = (window.scrollY - window.innerHeight * 5) / window.innerHeight;
-            // Visible: peel-in (5→6) and peel-out window (6→6.75). Past 6.75 → fully gone.
-            el.style.opacity = (totalP >= 0 && totalP <= 1.75) ? '1' : '0';
+            const scrollY = window.scrollY, vh = window.innerHeight;
+            const totalP = (scrollY - vh * 5) / vh;
+            // Visible: peel-in (5→6) and peel-out window (6→6.75). 
+            // We want it to stay visible while it's being peeled AWAY at 6->6.75
+            el.style.opacity = (totalP >= 0 && totalP <= 2.0) ? '1' : '0';
             el.style.pointerEvents = (totalP >= -0.05 && totalP <= 2.0) ? 'auto' : 'none';
         };
         window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
@@ -144,7 +146,8 @@ function S2PeelController() {
             const rects = REVEAL_STRIPS.map(({ w, l }, i) => {
                 const raw = Math.max(0, Math.min(1, (revealP - i * STAGGER) / STRIP_RANGE));
                 const peeledPct = easeOut(raw) * 100;
-                return `<rect x="${l}%" y="${peeledPct}%" width="${w + 0.5}%" height="${100 - peeledPct}%" fill="white"/>`;
+                // Peel UPWARDS to reveal Slide 3 (Manifesto) underneath
+                return `<rect x="${l}%" y="0%" width="${w + 0.5}%" height="${100 - peeledPct}%" fill="white"/>`;
             }).join('');
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">${rects}</svg>`;
             const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
@@ -176,7 +179,7 @@ export default function Home() {
                 ticking = false;
                 const scrollY = window.scrollY, vh = window.innerHeight;
                 // 0 = cave, 1 = ticker, 2 = homepage
-                const nextSection = scrollY < vh * 0.6 ? 0 : scrollY < vh * 6 ? 1 : 2;
+                const nextSection = scrollY < vh * 5 ? 0 : scrollY < vh * 6 ? 1 : 2;
                 if (activeSectionRef.current !== nextSection) {
                     activeSectionRef.current = nextSection;
                     setActiveSection(nextSection);
@@ -192,7 +195,7 @@ export default function Home() {
 
             <CavePeelController />
             <TickerSection />
-            {/* <S2PeelController /> */}
+            <S2PeelController />
             <main className="relative w-full" style={{ backgroundColor: "#0A0F1E", cursor: "none" }}>
                 {/* Fixed 3D / atmospherics — only over the first ~6.75vh of scroll */}
                 <div id="cave-canvas-container" className="fixed inset-0 z-0 h-screen w-full">
@@ -208,9 +211,16 @@ export default function Home() {
                     while the ticker peels over it during 6→6.75vh. */}
                 <section className="w-full pointer-events-none" style={{ height: "600vh" }} />
 
-                {/* New homepage — natural-flow content. Removed the 75vh cream pad to avoid sudden white block. */}
-                <div className="relative z-10 w-full pointer-events-auto">
-                    {/* <div style={{ height: "75vh", background: "#FAF9F6" }} /> */}
+                {/* Fixed container for Slide 3 (Manifesto) during its peel reveal (6→6.75vh) */}
+                <div className="fixed inset-0 z-[7] pointer-events-none" style={{ 
+                    visibility: (typeof window !== 'undefined' && window.scrollY >= window.innerHeight * 6 && window.scrollY <= window.innerHeight * 6.75) ? 'visible' : 'hidden',
+                    background: '#FAF9F6' 
+                }}>
+                    <SynapsisHomepage />
+                </div>
+
+                {/* Natural-flow content starts at 6.75vh */}
+                <div className="relative z-10 w-full pointer-events-auto" style={{ marginTop: "75vh" }}>
                     <SynapsisHomepage />
                 </div>
             </main>
